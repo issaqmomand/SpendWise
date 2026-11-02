@@ -1,58 +1,36 @@
 package com.group3.spendwise.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+// Colours based on the SpendWise wireframes
+val SpendBackground = Color(0xFFF3F4EE)
+val SpendGreen = Color(0xFF4F7261)
+val SpendLightGreen = Color(0xFFE3E9DF)
+val SpendNavy = Color(0xFF243241)
+val SpendMuted = Color(0xFF5C665F)
+val SpendBorder = Color(0xFFDDE1D6)
+val SpendError = Color(0xFFB3261E)
+val SpendWarning = Color(0xFFB36B00)
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
+private val SpendColorScheme = lightColorScheme(
+    primary = SpendGreen,
     onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    secondaryContainer = SpendLightGreen,
+    onSecondaryContainer = SpendGreen,
+    background = SpendBackground,
+    onBackground = SpendNavy,
+    surface = Color.White,
+    onSurface = SpendNavy,
+    error = SpendError
 )
 
 @Composable
-fun SpendwiseTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
-) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
+fun SpendWiseTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
+        colorScheme = SpendColorScheme,
         content = content
     )
 }
