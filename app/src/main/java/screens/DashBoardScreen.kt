@@ -1,285 +1,636 @@
+
 package com.group3.spendwise.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Coffee
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DirectionsBus
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.ShoppingBasket
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.Work
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.group3.spendwise.ui.theme.SpendBorder
-import com.group3.spendwise.ui.theme.SpendError
-import com.group3.spendwise.ui.theme.SpendGreen
-import com.group3.spendwise.ui.theme.SpendLightGreen
-import com.group3.spendwise.ui.theme.SpendMuted
-import com.group3.spendwise.ui.theme.SpendNavy
 import com.group3.spendwise.ui.theme.SpendWarning
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Locale
-import kotlin.math.abs
 
-// ---------------------------------------------------------------------------
-// Sample data for the prototype. In the next phase this will come from Room.
-// ---------------------------------------------------------------------------
+// Dashboard colors.
+private val balanceNavy = Color(0xFF203846)
+private val balanceSecondary = Color(0xFFDCE7E2)
+private val balanceCheck = Color(0xFFA9D2B5)
 
-private data class SampleTransaction(
-    val name: String,
-    val category: String,
-    val date: String,
-    val amount: Double, // negative = expense, positive = income
-    val icon: ImageVector
-)
+private const val HIDDEN_VALUE = "••••••"
 
-private val sampleTransactions = listOf(
-    SampleTransaction("Groceries", "Food", "Oct 24", -85.50, Icons.Outlined.ShoppingBasket),
-    SampleTransaction("Coffee", "Food", "Oct 24", -6.75, Icons.Outlined.Coffee),
-    SampleTransaction("Part-Time Job", "Salary", "Oct 23", 950.00, Icons.Outlined.Work),
-    SampleTransaction("Transportation", "Transportation", "Oct 22", -35.00, Icons.Outlined.DirectionsBus)
-)
+// Currency formatting.
+private fun dashboardMoney(value: Double): String {
+    return String.format(
+        Locale.CANADA,
+        "\$%,.2f",
+        value
+    )
+}
 
-private fun money(value: Double): String = String.format(Locale.US, "\$%,.2f", value)
+// Date formatting.
+private fun dashboardDate(date: String): String {
+    return runCatching {
+        LocalDate.parse(date).format(
+            DateTimeFormatter.ofPattern(
+                "MMM d",
+                Locale.ENGLISH
+            )
+        )
+    }.getOrDefault(date)
+}
+
+// Category icons for recent transactions.
+private fun dashboardIcon(category: String): ImageVector {
+    return when (category.lowercase(Locale.ENGLISH)) {
+        "food", "groceries", "shopping" ->
+            Icons.Outlined.ShoppingBasket
+
+        "coffee" ->
+            Icons.Outlined.Coffee
+
+        "transportation", "transport" ->
+            Icons.Outlined.DirectionsBus
+
+        "school", "education" ->
+            Icons.Outlined.School
+
+        "salary", "work", "job" ->
+            Icons.Outlined.Work
+
+        else ->
+            Icons.Outlined.ReceiptLong
+    }
+}
 
 @Composable
 fun DashboardScreen(
     userName: String,
     userEmail: String,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    isDarkMode: Boolean,
+    onDarkModeChange: (Boolean) -> Unit,
+    transactions: List<SpendTransaction>,
+    onViewTransactions: () -> Unit,
+    onTransactionClick: (SpendTransaction) -> Unit
 ) {
-    // UR-2: user can hide / show the balance
-    var balanceVisible by rememberSaveable { mutableStateOf(true) }
-
-    // Sample monthly figures
-    val monthlyIncome = 3200.0
-    val monthlyExpenses = 750.0
-    val monthlyBudget = 1200.0
-
-    // Data processing (UR-1, UR-4, UR-5)
-    val balance = monthlyIncome - monthlyExpenses
-    val remaining = monthlyBudget - monthlyExpenses
-    val percentUsed = monthlyExpenses / monthlyBudget * 100
-    val progress = (monthlyExpenses / monthlyBudget).toFloat().coerceIn(0f, 1f)
-    val percentText = String.format(Locale.US, "%.1f", percentUsed)
-
-    // UR-18: bar changes colour near the limit and when exceeded
-    val barColor = when {
-        progress >= 1f -> SpendError
-        progress >= 0.8f -> SpendWarning
-        else -> SpendGreen
+    // Hide or show every financial number on the Dashboard.
+    var numbersVisible by rememberSaveable {
+        mutableStateOf(true)
     }
 
-    // UR-5: when over budget, show how much (also as text, not just colour)
-    val overBy = -remaining
-    val statusText = if (remaining >= 0) {
-        "${money(remaining)} remaining"
+    var showAccountMenu by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    val colors = MaterialTheme.colorScheme
+    val titleColor = colors.onBackground
+    val mutedColor = colors.onSurfaceVariant
+    val accentColor = colors.primary
+    val cardColor = colors.surface
+
+    // CALCULATE MONTHLY TOTALS FROM ROOM TRANSACTIONS
+
+    val currentMonth = YearMonth.now()
+
+    val monthTransactions = transactions.filter { transaction ->
+        runCatching {
+            YearMonth.from(
+                LocalDate.parse(transaction.date)
+            )
+        }.getOrNull() == currentMonth
+    }
+
+    val monthlyIncome = monthTransactions
+        .filter {
+            it.kind == TransactionKind.INCOME
+        }
+        .sumOf {
+            it.amount
+        }
+
+    val monthlyExpenses = monthTransactions
+        .filter {
+            it.kind == TransactionKind.EXPENSE
+        }
+        .sumOf {
+            it.amount
+        }
+
+    // Current balance includes transactions from all months.
+    val totalIncome = transactions
+        .filter {
+            it.kind == TransactionKind.INCOME
+        }
+        .sumOf {
+            it.amount
+        }
+
+    val totalExpenses = transactions
+        .filter {
+            it.kind == TransactionKind.EXPENSE
+        }
+        .sumOf {
+            it.amount
+        }
+
+    val currentBalance = totalIncome - totalExpenses
+
+    // Show the five latest saved transactions.
+    val recentTransactions = transactions
+        .sortedWith(
+            compareByDescending<SpendTransaction> {
+                it.date
+            }.thenByDescending {
+                it.id
+            }
+        )
+        .take(5)
+
+    // MONTHLY INCOME OVERVIEW
+
+    val remainingIncome = monthlyIncome - monthlyExpenses
+
+    val percentSpent = if (monthlyIncome > 0.0) {
+        monthlyExpenses / monthlyIncome * 100.0
     } else {
-        "Over budget by ${money(overBy)}, ${String.format(Locale.US, "%.1f", percentUsed - 100)}%"
+        null
     }
 
-    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    val progress = when {
+        monthlyIncome > 0.0 ->
+            (monthlyExpenses / monthlyIncome)
+                .toFloat()
+                .coerceIn(0f, 1f)
+
+        monthlyExpenses > 0.0 -> 1f
+
+        else -> 0f
+    }
+
+    val barColor = when {
+        monthlyIncome <= 0.0 &&
+                monthlyExpenses > 0.0 ->
+            colors.error
+
+        remainingIncome < 0.0 ->
+            colors.error
+
+        percentSpent != null &&
+                percentSpent >= 80.0 ->
+            SpendWarning
+
+        else ->
+            accentColor
+    }
+
+    val incomeStatus = when {
+        monthlyIncome == 0.0 &&
+                monthlyExpenses == 0.0 ->
+            "Add an income transaction to get started"
+
+        monthlyIncome == 0.0 ->
+            "No income recorded this month"
+
+        remainingIncome >= 0.0 ->
+            "${dashboardMoney(remainingIncome)} remaining"
+
+        else ->
+            "${dashboardMoney(-remainingIncome)} over monthly income"
+    }
+
+    val percentLabel = if (percentSpent != null) {
+        String.format(
+            Locale.CANADA,
+            "%.1f%% used",
+            percentSpent
+        )
+    } else {
+        "—"
+    }
+
+    // Greeting based on local time.
+    val hour = Calendar.getInstance()
+        .get(Calendar.HOUR_OF_DAY)
+
     val greeting = when {
         hour < 12 -> "Good Morning!"
         hour < 18 -> "Good Afternoon!"
         else -> "Good Evening!"
     }
-    val displayName = userName.ifBlank { userEmail }
+
+    val displayName = userName.ifBlank {
+        userEmail
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(
+                horizontal = 20.dp,
+                vertical = 12.dp
+            ),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // ---------------------------------------------------------- Header
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
+
+        // HEADER AND ACCOUNT MENU
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
                     text = greeting,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    color = SpendNavy
+                    color = titleColor
                 )
+
                 Text(
                     text = "Signed in as $displayName",
                     style = MaterialTheme.typography.bodySmall,
-                    color = SpendMuted
+                    color = mutedColor
                 )
             }
-            IconButton(onClick = onLogout) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Logout,
-                    contentDescription = "Log out",
-                    tint = SpendNavy
-                )
+
+            Box {
+                IconButton(
+                    onClick = {
+                        showAccountMenu = true
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "Account options",
+                        tint = titleColor
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showAccountMenu,
+                    onDismissRequest = {
+                        showAccountMenu = false
+                    }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isDarkMode) {
+                                    "Light mode"
+                                } else {
+                                    "Dark mode"
+                                }
+                            )
+                        },
+                        onClick = {
+                            showAccountMenu = false
+                            onDarkModeChange(!isDarkMode)
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (isDarkMode) {
+                                    Icons.Outlined.LightMode
+                                } else {
+                                    Icons.Outlined.DarkMode
+                                },
+                                contentDescription = null
+                            )
+                        },
+                        trailingIcon = {
+                            Switch(
+                                checked = isDarkMode,
+                                onCheckedChange = { enabled ->
+                                    showAccountMenu = false
+                                    onDarkModeChange(enabled)
+                                }
+                            )
+                        }
+                    )
+
+                    HorizontalDivider()
+
+                    DropdownMenuItem(
+                        text = {
+                            Text("Log out")
+                        },
+                        onClick = {
+                            showAccountMenu = false
+                            onLogout()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector =
+                                    Icons.AutoMirrored.Filled.Logout,
+                                contentDescription = null
+                            )
+                        }
+                    )
+                }
             }
         }
 
-        // --------------------------------------------------- Balance card
+        // CURRENT BALANCE CARD
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = SpendNavy)
+            shape = RoundedCornerShape(26.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = balanceNavy
+            )
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        horizontal = 22.dp,
+                        vertical = 18.dp
+                    )
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         text = "Current Balance",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 16.sp,
+                        color = balanceSecondary,
                         modifier = Modifier.weight(1f)
                     )
-                    IconButton(onClick = { balanceVisible = !balanceVisible }) {
+
+                    IconButton(
+                        onClick = {
+                            numbersVisible = !numbersVisible
+                        },
+                        modifier = Modifier.size(38.dp)
+                    ) {
                         Icon(
-                            imageVector = if (balanceVisible) {
+                            imageVector = if (numbersVisible) {
                                 Icons.Outlined.Visibility
                             } else {
                                 Icons.Outlined.VisibilityOff
                             },
-                            contentDescription = if (balanceVisible) "Hide balance" else "Show balance",
-                            tint = Color.White
+                            contentDescription = if (numbersVisible) {
+                                "Hide all Dashboard amounts"
+                            } else {
+                                "Show all Dashboard amounts"
+                            },
+                            tint = balanceSecondary,
+                            modifier = Modifier.size(25.dp)
                         )
                     }
                 }
-                Text(
-                    text = if (balanceVisible) money(balance) else "\u2022\u2022\u2022\u2022\u2022\u2022",
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+
                 Spacer(Modifier.height(8.dp))
+
                 Text(
-                    text = "Tracked by you. No bank connection.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.8f)
+                    text = if (numbersVisible) {
+                        dashboardMoney(currentBalance)
+                    } else {
+                        HIDDEN_VALUE
+                    },
+                    fontSize = 40.sp,
+                    lineHeight = 47.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+
+                Spacer(Modifier.height(13.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Check,
+                        contentDescription = null,
+                        tint = balanceCheck,
+                        modifier = Modifier.size(19.dp)
+                    )
+
+                    Spacer(Modifier.width(8.dp))
+
+                    Text(
+                        text = "Tracked by you. No bank connection.",
+                        color = balanceSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp
+                    )
+                }
             }
         }
 
-        // --------------------------------------- Monthly income / expenses
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatCard(
+        // READ-ONLY MONTHLY INCOME AND EXPENSES
+        // These values are calculated from transactions.
+        // No edit buttons or manual inputs.
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            DashboardStatCard(
                 label = "Monthly Income",
-                value = money(monthlyIncome),
-                valueColor = SpendGreen,
+                value = if (numbersVisible) {
+                    dashboardMoney(monthlyIncome)
+                } else {
+                    HIDDEN_VALUE
+                },
+                valueColor = accentColor,
                 modifier = Modifier.weight(1f)
             )
-            StatCard(
+
+            DashboardStatCard(
                 label = "Monthly Expenses",
-                value = money(monthlyExpenses),
-                valueColor = SpendNavy,
+                value = if (numbersVisible) {
+                    dashboardMoney(monthlyExpenses)
+                } else {
+                    HIDDEN_VALUE
+                },
+                valueColor = titleColor,
                 modifier = Modifier.weight(1f)
             )
         }
 
-        // ------------------------------------------------- Budget overview
+        // MONTHLY INCOME OVERVIEW
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = cardColor
+            )
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(
+                modifier = Modifier.padding(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Monthly Budget Overview",
+                        text = "Monthly Income Overview",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = SpendNavy,
+                        color = titleColor,
                         modifier = Modifier.weight(1f)
                     )
+
                     Text(
-                        text = "$percentText% used",
+                        text = if (numbersVisible) {
+                            percentLabel
+                        } else {
+                            HIDDEN_VALUE
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = SpendNavy
+                        color = titleColor
                     )
                 }
-                Spacer(Modifier.height(8.dp))
+
+                Spacer(Modifier.height(9.dp))
+
                 Text(
-                    text = "${money(monthlyExpenses)} spent of ${money(monthlyBudget)}",
+                    text = if (numbersVisible) {
+                        "${dashboardMoney(monthlyExpenses)} spent of " +
+                                "${dashboardMoney(monthlyIncome)} income"
+                    } else {
+                        "Monthly figures hidden"
+                    },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = SpendMuted
+                    color = mutedColor
                 )
-                Spacer(Modifier.height(10.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
-                    color = barColor,
-                    trackColor = SpendLightGreen,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(10.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                )
-                Spacer(Modifier.height(8.dp))
+
+                Spacer(Modifier.height(13.dp))
+
+                if (numbersVisible) {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        color = barColor,
+                        trackColor = colors.secondaryContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .background(
+                                colors.secondaryContainer,
+                                RoundedCornerShape(5.dp)
+                            )
+                    )
+                }
+
+                Spacer(Modifier.height(11.dp))
+
                 Text(
-                    text = statusText,
+                    text = if (numbersVisible) {
+                        incomeStatus
+                    } else {
+                        "Remaining income hidden"
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (remaining >= 0) SpendGreen else SpendError
+                    color = if (
+                        !numbersVisible ||
+                        remainingIncome >= 0.0
+                    ) {
+                        accentColor
+                    } else {
+                        colors.error
+                    }
                 )
             }
         }
 
-        // -------------------------------------------- Recent transactions
+        // RECENT TRANSACTIONS
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(
+                containerColor = cardColor
+            )
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                Text(
-                    text = "Recent transactions",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = SpendNavy
-                )
-                sampleTransactions.forEachIndexed { index, transaction ->
-                    if (index > 0) HorizontalDivider(color = SpendBorder)
-                    TransactionRow(transaction)
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Recent transactions",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = titleColor,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    TextButton(
+                        onClick = onViewTransactions
+                    ) {
+                        Text("View all")
+                    }
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Prototype sample data. Real transactions will come from the Room database next.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SpendMuted
-                )
+
+                if (recentTransactions.isEmpty()) {
+                    Text(
+                        text = "No transactions yet. Add your first transaction to get started.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = mutedColor,
+                        modifier = Modifier.padding(
+                            vertical = 12.dp
+                        )
+                    )
+                } else {
+                    recentTransactions.forEachIndexed {
+                            index, transaction ->
+
+                        if (index > 0) {
+                            HorizontalDivider(
+                                color = colors.outlineVariant
+                            )
+                        }
+
+                        DashboardTransactionRow(
+                            transaction = transaction,
+                            numbersVisible = numbersVisible,
+                            onClick = {
+                                onTransactionClick(transaction)
+                            }
+                        )
+                    }
+                }
             }
         }
 
@@ -287,77 +638,123 @@ fun DashboardScreen(
     }
 }
 
+// READ-ONLY MONTHLY SUMMARY CARD
+// Pencil icons and editing callbacks removed.
 @Composable
-private fun StatCard(
+private fun DashboardStatCard(
     label: String,
     value: String,
     valueColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = MaterialTheme.colorScheme
+
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(
+            containerColor = colors.surface
+        )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = SpendMuted
+                color = colors.onSurfaceVariant,
+                maxLines = 1
             )
-            Spacer(Modifier.height(4.dp))
+
+            Spacer(Modifier.height(9.dp))
+
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = valueColor
+                color = valueColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
 }
 
+// RECENT TRANSACTION ROW
 @Composable
-private fun TransactionRow(transaction: SampleTransaction) {
-    val isIncome = transaction.amount >= 0
-    val sign = if (isIncome) "+" else "-"
+private fun DashboardTransactionRow(
+    transaction: SpendTransaction,
+    numbersVisible: Boolean,
+    onClick: () -> Unit
+) {
+    val colors = MaterialTheme.colorScheme
+
+    val isIncome =
+        transaction.kind == TransactionKind.INCOME
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp),
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .background(SpendLightGreen, CircleShape),
+                .background(
+                    colors.secondaryContainer,
+                    CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = transaction.icon,
+                imageVector = dashboardIcon(transaction.category),
                 contentDescription = null,
-                tint = SpendGreen
+                tint = colors.primary
             )
         }
+
         Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
             Text(
-                text = transaction.name,
+                text = transaction.description,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
-                color = SpendNavy
+                color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
+
             Text(
-                text = "${transaction.category} \u00B7 ${transaction.date}",
+                text = if (numbersVisible) {
+                    "${transaction.category} · " +
+                            dashboardDate(transaction.date)
+                } else {
+                    transaction.category
+                },
                 style = MaterialTheme.typography.bodySmall,
-                color = SpendMuted
+                color = colors.onSurfaceVariant
             )
         }
+
         Text(
-            text = "$sign${money(abs(transaction.amount))}",
+            text = if (numbersVisible) {
+                (if (isIncome) "+" else "-") +
+                        dashboardMoney(transaction.amount)
+            } else {
+                HIDDEN_VALUE
+            },
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
-            color = if (isIncome) SpendGreen else SpendNavy
+            color = if (isIncome) {
+                colors.primary
+            } else {
+                colors.onSurface
+            }
         )
     }
 }

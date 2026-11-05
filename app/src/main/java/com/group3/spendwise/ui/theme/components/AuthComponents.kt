@@ -1,3 +1,4 @@
+
 package com.group3.spendwise.ui.components
 
 import androidx.compose.foundation.background
@@ -33,65 +34,69 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.group3.spendwise.ui.theme.SpendBorder
-import com.group3.spendwise.ui.theme.SpendError
-import com.group3.spendwise.ui.theme.SpendGreen
-import com.group3.spendwise.ui.theme.SpendLightGreen
-import com.group3.spendwise.ui.theme.SpendMuted
-import com.group3.spendwise.ui.theme.SpendNavy
 
-/** Logo + app name shown at the top of the login and register screens. */
+// App logo and heading
 @Composable
 fun AuthHeader() {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         Box(
             modifier = Modifier
                 .size(44.dp)
-                .background(SpendLightGreen, RoundedCornerShape(12.dp)),
+                .background(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    RoundedCornerShape(12.dp)
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.AccountBalanceWallet,
                 contentDescription = null,
-                tint = SpendGreen
+                tint = MaterialTheme.colorScheme.primary
             )
         }
+
         Spacer(Modifier.width(12.dp))
+
         Column {
             Text(
                 text = "SpendWise",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = SpendNavy
+                color = MaterialTheme.colorScheme.onBackground
             )
+
             Text(
                 text = "A little habit. A clearer picture.",
                 style = MaterialTheme.typography.bodySmall,
-                color = SpendMuted
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
+// Shared text field colours
 @Composable
-private fun fieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = Color.White,
-    unfocusedContainerColor = Color.White,
-    focusedBorderColor = SpendGreen,
-    unfocusedBorderColor = SpendBorder,
-    focusedLabelColor = SpendGreen,
-    unfocusedLabelColor = SpendMuted,
-    cursorColor = SpendGreen
-)
+private fun fieldColors(): TextFieldColors {
+    return OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = MaterialTheme.colorScheme.surface,
+        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
+        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+        focusedLabelColor = MaterialTheme.colorScheme.primary,
+        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        cursorColor = MaterialTheme.colorScheme.primary
+    )
+}
 
-/** Normal single-line text field (name, email). */
+// Regular text field
 @Composable
 fun AppTextField(
     label: String,
@@ -109,13 +114,16 @@ fun AppTextField(
         placeholder = { Text(placeholder) },
         singleLine = true,
         shape = RoundedCornerShape(14.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            imeAction = imeAction
+        ),
         colors = fieldColors(),
         modifier = modifier.fillMaxWidth()
     )
 }
 
-/** Password field with a show/hide (eye) toggle. */
+// Password field with visibility toggle
 @Composable
 fun PasswordField(
     label: String,
@@ -125,7 +133,9 @@ fun PasswordField(
     modifier: Modifier = Modifier,
     imeAction: ImeAction = ImeAction.Next
 ) {
-    var visible by rememberSaveable { mutableStateOf(false) }
+    var visible by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     OutlinedTextField(
         value = value,
@@ -134,14 +144,30 @@ fun PasswordField(
         placeholder = { Text(placeholder) },
         singleLine = true,
         shape = RoundedCornerShape(14.dp),
-        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = imeAction),
+        visualTransformation =
+            if (visible) {
+                VisualTransformation.None
+            } else {
+                PasswordVisualTransformation()
+            },
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            imeAction = imeAction
+        ),
         trailingIcon = {
-            IconButton(onClick = { visible = !visible }) {
+            IconButton(
+                onClick = { visible = !visible }
+            ) {
                 Icon(
-                    imageVector = if (visible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
-                    contentDescription = if (visible) "Hide password" else "Show password",
-                    tint = SpendMuted
+                    imageVector =
+                        if (visible) {
+                            Icons.Outlined.VisibilityOff
+                        } else {
+                            Icons.Outlined.Visibility
+                        },
+                    contentDescription =
+                        if (visible) "Hide password" else "Show password",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         },
@@ -150,7 +176,7 @@ fun PasswordField(
     )
 }
 
-/** Big green button. Shows a spinner while a Firebase request is running. */
+// Main authentication button
 @Composable
 fun PrimaryButton(
     text: String,
@@ -163,10 +189,11 @@ fun PrimaryButton(
         enabled = !isLoading,
         shape = RoundedCornerShape(14.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = SpendGreen,
-            contentColor = Color.White,
-            disabledContainerColor = SpendGreen.copy(alpha = 0.6f),
-            disabledContentColor = Color.White
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            disabledContainerColor =
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+            disabledContentColor = MaterialTheme.colorScheme.onPrimary
         ),
         modifier = modifier
             .fillMaxWidth()
@@ -176,29 +203,36 @@ fun PrimaryButton(
             CircularProgressIndicator(
                 modifier = Modifier.size(22.dp),
                 strokeWidth = 2.dp,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onPrimary
             )
         } else {
-            Text(text = text, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = text,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
 
-/** Shows an error (red) and/or an info message (green) as plain text, not colour alone. */
+// Authentication feedback messages
 @Composable
-fun AuthMessages(errorMessage: String?, infoMessage: String?) {
+fun AuthMessages(
+    errorMessage: String?,
+    infoMessage: String?
+) {
     errorMessage?.let {
         Text(
             text = it,
-            color = SpendError,
+            color = MaterialTheme.colorScheme.error,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(bottom = 12.dp)
         )
     }
+
     infoMessage?.let {
         Text(
             text = it,
-            color = SpendGreen,
+            color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier.padding(bottom = 12.dp)
         )
