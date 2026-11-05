@@ -34,10 +34,6 @@ import com.group3.spendwise.ui.components.AuthHeader
 import com.group3.spendwise.ui.components.AuthMessages
 import com.group3.spendwise.ui.components.PasswordField
 import com.group3.spendwise.ui.components.PrimaryButton
-import com.group3.spendwise.ui.theme.SpendBackground
-import com.group3.spendwise.ui.theme.SpendGreen
-import com.group3.spendwise.ui.theme.SpendMuted
-import com.group3.spendwise.ui.theme.SpendNavy
 
 @Composable
 fun LoginScreen(
@@ -50,7 +46,7 @@ fun LoginScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SpendBackground)
+            .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
@@ -64,13 +60,13 @@ fun LoginScreen(
             text = "Welcome back!",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = SpendNavy
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = "From coffee runs to course books, keep your everyday spending in view.",
             style = MaterialTheme.typography.bodyMedium,
-            color = SpendMuted
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(Modifier.height(24.dp))
@@ -99,7 +95,7 @@ fun LoginScreen(
         ) {
             Text(
                 text = "Forgot password?",
-                color = SpendGreen,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -125,12 +121,12 @@ fun LoginScreen(
             Text(
                 text = "New to SpendWise?",
                 style = MaterialTheme.typography.bodyMedium,
-                color = SpendMuted
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             TextButton(onClick = onGoToRegister) {
                 Text(
                     text = "Create Account",
-                    color = SpendGreen,
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -141,7 +137,7 @@ fun LoginScreen(
         Text(
             text = "Tracked by you. No bank connection.",
             style = MaterialTheme.typography.bodySmall,
-            color = SpendMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
