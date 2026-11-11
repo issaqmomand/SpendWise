@@ -1,6 +1,8 @@
 
 package com.group3.spendwise
 
+import com.group3.spendwise.R
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
@@ -17,6 +19,7 @@ import java.text.NumberFormat
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.Currency
 import kotlin.math.roundToLong
 
 // Sends budget alerts when spending or the budget changes.
@@ -34,7 +37,7 @@ class BudgetNotificationManager(context: Context) {
 
     companion object {
         private const val CHANNEL_ID = "spendwise_budget_alerts"
-        private const val CHANNEL_NAME = "Budget Alerts"
+
 
         private const val BELOW_WARNING = 0
         private const val WARNING_90 = 1
@@ -50,11 +53,11 @@ class BudgetNotificationManager(context: Context) {
 
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                CHANNEL_NAME,
+                appContext.getString(R.string.notifications_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description =
-                    "Notifications when spending approaches or exceeds your budget"
+                    appContext.getString(R.string.notifications_channel_description)
             }
 
             val manager = appContext.getSystemService(
@@ -154,14 +157,16 @@ class BudgetNotificationManager(context: Context) {
                 YearMonth.parse(monthKey).format(
                     DateTimeFormatter.ofPattern(
                         "MMMM yyyy",
-                        Locale.CANADA
+                        appContext.resources.configuration.locales[0]
                     )
                 )
             }.getOrDefault(monthKey)
 
             val currency = NumberFormat.getCurrencyInstance(
-                Locale.CANADA
-            )
+                appContext.resources.configuration.locales[0]
+            ).apply {
+                currency = Currency.getInstance("CAD")
+            }
 
             val spentText = currency.format(monthlyExpenses)
             val budgetText = currency.format(monthlyBudget)
@@ -170,19 +175,12 @@ class BudgetNotificationManager(context: Context) {
             val message: String
 
             if (currentLevel == EXCEEDED_100) {
-                title = "Monthly Budget Exceeded"
-
-                message =
-                    "You've spent $spentText of your " +
-                            "$budgetText budget for $displayMonth."
+                title = appContext.getString(R.string.notifications_exceeded_title)
+                message = appContext.getString(R.string.notifications_exceeded_body, spentText, budgetText, displayMonth)
 
             } else {
-                title = "Budget Warning"
-
-                message =
-                    "You've used at least 90% of your " +
-                            "$budgetText budget for $displayMonth. " +
-                            "Spent so far: $spentText."
+                title = appContext.getString(R.string.notifications_warning_title)
+                message = appContext.getString(R.string.notifications_warning_body, budgetText, displayMonth, spentText)
             }
 
             // A fresh notification ID creates a new alert

@@ -1,4 +1,13 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.transactions
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
+import com.group3.spendwise.ui.components.TransactionCategories
+import com.group3.spendwise.ui.components.VoiceNoteSection
+
+import com.group3.spendwise.model.SpendTransaction
+import com.group3.spendwise.model.TransactionKind
 
 import android.app.DatePickerDialog
 import android.content.Intent
@@ -93,11 +102,8 @@ private val formRed: Color
     @Composable get() = if (MaterialTheme.colorScheme.surface == Color.White)
         Color(0xFFC7554E) else MaterialTheme.colorScheme.error
 
-private val expenseCategories = listOf(
-    "Food", "Transportation", "Shopping", "Entertainment",
-    "School", "Housing", "Subscriptions", "Other"
-)
-private val incomeCategories = listOf("Salary", "Gift", "Refund", "Other")
+private val expenseCategories = TransactionCategories.expenses
+private val incomeCategories = TransactionCategories.income
 
 private val formSurface: Color
     @Composable get() = MaterialTheme.colorScheme.surface
@@ -194,7 +200,7 @@ fun AddTransactionScreen(
         } catch (_: Exception) {
             pendingCameraUri = ""
             pendingCameraFile = ""
-            receiptError = "Unable to open camera."
+            receiptError = context.getString(R.string.form_camera_error)
         }
     }
 
@@ -209,7 +215,7 @@ fun AddTransactionScreen(
             )
             receiptError = ""
         } catch (_: Exception) {
-            receiptError = "Unable to open receipt."
+            receiptError = context.getString(R.string.form_receipt_open_error)
         }
     }
 
@@ -227,28 +233,28 @@ fun AddTransactionScreen(
     ) {
         Row(verticalAlignment = Alignment.Top) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Outlined.ArrowBack, "Back", tint = formNavy)
+                Icon(Icons.Outlined.ArrowBack, stringResource(R.string.action_back), tint = formNavy)
             }
             Spacer(Modifier.width(8.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    if (editing) "Edit Transaction" else "Add Transaction",
+                    if (editing) stringResource(R.string.form_edit_title) else stringResource(R.string.form_add_title),
                     color = formNavy,
                     fontSize = 30.sp,
                     fontWeight = FontWeight.Normal
                 )
                 Text(
-                    if (editing) "Make your record more accurate." else "A little habit. A clearer picture.",
+                    if (editing) stringResource(R.string.form_edit_subtitle) else stringResource(R.string.app_tagline),
                     color = formMuted,
                     fontSize = 14.sp
                 )
             }
-            Text("CAD", color = formMuted, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+            Text(stringResource(R.string.currency_cad), color = formMuted, fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
                 modifier = Modifier.padding(top = 25.dp))
         }
 
         Spacer(Modifier.height(28.dp))
-        Text("Receipt Attachment · optional", color = formMuted, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Text(stringResource(R.string.form_receipt_heading), color = formMuted, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         Spacer(Modifier.height(10.dp))
         Row(
             modifier = Modifier.fillMaxWidth()
@@ -261,7 +267,7 @@ fun AddTransactionScreen(
             Icon(Icons.Outlined.CameraAlt, null, tint = formGreen, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(10.dp))
             Text(
-                if (receiptUri.isNullOrBlank()) "Add Receipt Photo" else "Change Receipt Photo",
+                if (receiptUri.isNullOrBlank()) stringResource(R.string.form_add_receipt) else stringResource(R.string.form_change_receipt),
                 color = formGreen,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold
@@ -272,16 +278,16 @@ fun AddTransactionScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 6.dp)
             ) {
-                Text("Receipt attached", fontSize = 12.sp, color = formGreen)
+                Text(stringResource(R.string.form_receipt_attached), fontSize = 12.sp, color = formGreen)
                 Spacer(Modifier.width(8.dp))
                 TextButton(onClick = { viewReceipt() }) {
-                    Text("View", color = formGreen, fontSize = 13.sp)
+                    Text(stringResource(R.string.action_view), color = formGreen, fontSize = 13.sp)
                 }
                 TextButton(onClick = {
                     receiptUri = null
                     receiptError = ""
                 }) {
-                    Text("Remove", color = formRed, fontSize = 13.sp)
+                    Text(stringResource(R.string.action_remove), color = formRed, fontSize = 13.sp)
                 }
             }
         }
@@ -297,7 +303,7 @@ fun AddTransactionScreen(
             horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             KindOption(
-                text = "Expense", selected = kind == TransactionKind.EXPENSE.name,
+                text = stringResource(R.string.type_expense), selected = kind == TransactionKind.EXPENSE.name,
                 icon = Icons.Outlined.ArrowUpward,
                 modifier = Modifier.weight(1f)
             ) {
@@ -305,7 +311,7 @@ fun AddTransactionScreen(
                 if (category !in expenseCategories) category = ""
             }
             KindOption(
-                text = "Income", selected = kind == TransactionKind.INCOME.name,
+                text = stringResource(R.string.type_income), selected = kind == TransactionKind.INCOME.name,
                 icon = Icons.Outlined.ArrowDownward,
                 modifier = Modifier.weight(1f)
             ) {
@@ -316,7 +322,7 @@ fun AddTransactionScreen(
 
         Spacer(Modifier.height(28.dp))
         Text(
-            "Amount * · CAD",
+            stringResource(R.string.form_amount_label),
             fontSize = 13.sp,
             color = formMuted,
             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -356,8 +362,8 @@ fun AddTransactionScreen(
             value = description,
             onValueChange = { description = it },
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Description *") },
-            placeholder = { Text("What was it for?") },
+            label = { Text(stringResource(R.string.form_description_required)) },
+            placeholder = { Text(stringResource(R.string.form_description_hint)) },
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             colors = softInputColors()
@@ -374,10 +380,10 @@ fun AddTransactionScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Category *", color = formMuted, fontSize = 12.sp)
+                        Text(stringResource(R.string.form_category_required), color = formMuted, fontSize = 12.sp)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            category.ifBlank { "Select category" },
+                            if (category.isBlank()) stringResource(R.string.form_category_select) else localizedCategory(category),
                             color = if (category.isBlank()) formMuted else formNavy,
                             fontSize = 14.sp,
                             maxLines = 1
@@ -390,7 +396,7 @@ fun AddTransactionScreen(
                     onDismissRequest = { categoryExpanded = false }
                 ) {
                     categories.forEach { option ->
-                        DropdownMenuItem(text = { Text(option) }, onClick = {
+                        DropdownMenuItem(text = { Text(localizedCategory(option)) }, onClick = {
                             category = option
                             categoryExpanded = false
                         })
@@ -412,7 +418,7 @@ fun AddTransactionScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Date *", color = formMuted, fontSize = 12.sp)
+                    Text(stringResource(R.string.form_date_required), color = formMuted, fontSize = 12.sp)
                     Spacer(Modifier.height(4.dp))
                     Text(displayFormDate(date), color = formNavy, fontSize = 14.sp, maxLines = 1)
                 }
@@ -423,8 +429,8 @@ fun AddTransactionScreen(
         Spacer(Modifier.height(11.dp))
         Text(
             if (kind == TransactionKind.EXPENSE.name)
-                "Food · Transportation · Shopping · Entertainment\nSchool · Housing · Subscriptions · Other"
-            else "Salary · Gift · Refund · Other",
+                stringResource(R.string.form_expense_categories)
+            else stringResource(R.string.form_income_categories),
             fontSize = 12.sp,
             color = formMuted,
             lineHeight = 19.sp
@@ -444,7 +450,7 @@ fun AddTransactionScreen(
 
         if (attemptedSave && !canSave) {
             Spacer(Modifier.height(12.dp))
-            Text("Enter an amount, description and category.", color = formRed, fontSize = 13.sp)
+            Text(stringResource(R.string.form_required_error), color = formRed, fontSize = 13.sp)
         }
 
         Spacer(Modifier.height(21.dp))
@@ -471,7 +477,7 @@ fun AddTransactionScreen(
             shape = RoundedCornerShape(15.dp),
             colors = ButtonDefaults.buttonColors(containerColor = formGreen)
         ) {
-            Text(if (editing) "Save Changes" else "Save Transaction", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(if (editing) stringResource(R.string.form_save_changes) else stringResource(R.string.form_save_transaction), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
 
         if (editing && onDelete != null) {
@@ -479,7 +485,7 @@ fun AddTransactionScreen(
             TextButton(onClick = { confirmDelete = true }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                 Icon(Icons.Outlined.DeleteOutline, null, tint = formRed, modifier = Modifier.size(19.dp))
                 Spacer(Modifier.width(5.dp))
-                Text("Delete Transaction", color = formRed)
+                Text(stringResource(R.string.form_delete_transaction), color = formRed)
             }
         }
     }
@@ -487,14 +493,14 @@ fun AddTransactionScreen(
     if (showReceiptOptions) {
         AlertDialog(
             onDismissRequest = { showReceiptOptions = false },
-            title = { Text("Add Receipt Photo", color = formNavy) },
-            text = { Text("How would you like to attach a receipt?") },
+            title = { Text(stringResource(R.string.form_add_receipt), color = formNavy) },
+            text = { Text(stringResource(R.string.form_receipt_question)) },
             confirmButton = {
                 TextButton(onClick = {
                     showReceiptOptions = false
                     takeReceiptPhoto()
                 }) {
-                    Text("Take Photo", color = formGreen)
+                    Text(stringResource(R.string.form_receipt_take), color = formGreen)
                 }
             },
             dismissButton = {
@@ -502,7 +508,7 @@ fun AddTransactionScreen(
                     showReceiptOptions = false
                     receiptPicker.launch(arrayOf("image/*"))
                 }) {
-                    Text("Choose from Gallery", color = formGreen)
+                    Text(stringResource(R.string.form_receipt_gallery), color = formGreen)
                 }
             },
             containerColor = formBackground
@@ -512,16 +518,16 @@ fun AddTransactionScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Delete transaction?", color = formNavy) },
-            text = { Text("This transaction will be permanently removed.") },
+            title = { Text(stringResource(R.string.transaction_delete_prompt), color = formNavy) },
+            text = { Text(stringResource(R.string.form_delete_confirm)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmDelete = false
                     onDelete?.invoke()
-                }) { Text("Delete", color = formRed) }
+                }) { Text(stringResource(R.string.action_delete), color = formRed) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDelete = false }) { Text("Cancel", color = formGreen) }
+                TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.action_cancel), color = formGreen) }
             },
             containerColor = formBackground
         )
@@ -564,7 +570,7 @@ private fun NotesInputField(
                     Box {
                         if (notes.isEmpty()) {
                             Text(
-                                text = "Add a note...",
+                                text = stringResource(R.string.form_note_hint),
                                 color = formMuted,
                                 fontSize = 16.sp
                             )
@@ -623,5 +629,5 @@ private fun softInputColors() = OutlinedTextFieldDefaults.colors(
 )
 
 private fun displayFormDate(value: String): String = runCatching {
-    LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ENGLISH))
+    LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault()))
 }.getOrElse { value }

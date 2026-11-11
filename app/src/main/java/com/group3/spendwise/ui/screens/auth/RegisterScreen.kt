@@ -1,4 +1,8 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.auth
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -59,14 +63,14 @@ fun RegisterScreen(
         Spacer(Modifier.height(32.dp))
 
         Text(
-            text = "Create your account",
+            text = stringResource(R.string.register_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Make room for what matters. Start building better money habits, one expense at a time.",
+            text = stringResource(R.string.register_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -74,44 +78,44 @@ fun RegisterScreen(
         Spacer(Modifier.height(24.dp))
 
         AppTextField(
-            label = "Full name",
+            label = stringResource(R.string.register_full_name),
             value = fullName,
             onValueChange = { fullName = it },
-            placeholder = "Your name"
+            placeholder = stringResource(R.string.register_name_hint)
         )
 
         Spacer(Modifier.height(12.dp))
 
         AppTextField(
-            label = "Email",
+            label = stringResource(R.string.auth_email),
             value = email,
             onValueChange = { email = it },
-            placeholder = "you@example.com",
+            placeholder = stringResource(R.string.auth_email_hint),
             keyboardType = KeyboardType.Email
         )
 
         Spacer(Modifier.height(12.dp))
 
         PasswordField(
-            label = "Password",
+            label = stringResource(R.string.auth_password),
             value = password,
             onValueChange = { password = it },
-            placeholder = "Create a password"
+            placeholder = stringResource(R.string.register_password_hint)
         )
 
         Spacer(Modifier.height(12.dp))
 
         PasswordField(
-            label = "Confirm password",
+            label = stringResource(R.string.register_confirm_password),
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            placeholder = "Re-enter your password",
+            placeholder = stringResource(R.string.register_confirm_hint),
             imeAction = ImeAction.Done
         )
 
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Use at least 8 characters, including a number.",
+            text = stringResource(R.string.register_password_help),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -124,7 +128,7 @@ fun RegisterScreen(
         )
 
         PrimaryButton(
-            text = "Create Account",
+            text = stringResource(R.string.register_button),
             onClick = {
                 authViewModel.register(fullName, email, password, confirmPassword)
             },
@@ -139,13 +143,13 @@ fun RegisterScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Already have an account?",
+                text = stringResource(R.string.register_existing),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             TextButton(onClick = onGoToLogin) {
                 Text(
-                    text = "Log In",
+                    text = stringResource(R.string.login_button),
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -155,7 +159,7 @@ fun RegisterScreen(
         Spacer(Modifier.height(32.dp))
 
         Text(
-            text = "Tracked by you. No bank connection.",
+            text = stringResource(R.string.app_privacy_line),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

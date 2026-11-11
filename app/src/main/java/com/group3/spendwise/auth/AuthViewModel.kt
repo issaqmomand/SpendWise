@@ -2,6 +2,7 @@
 package com.group3.spendwise.auth
 
 import android.content.Context
+import com.group3.spendwise.R
 import android.util.Patterns
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,6 +19,7 @@ import com.google.firebase.auth.UserProfileChangeRequest
 
 class AuthViewModel : ViewModel() {
 
+    private val appContext = FirebaseApp.getInstance().applicationContext
     private val auth = FirebaseAuth.getInstance()
 
     private val dashboardPreferences = FirebaseApp.getInstance()
@@ -60,12 +62,12 @@ class AuthViewModel : ViewModel() {
         val cleanEmail = email.trim()
 
         if (cleanEmail.isEmpty() || password.isEmpty()) {
-            errorMessage = "Enter your email and password."
+            errorMessage = appContext.getString(R.string.error_auth_empty)
             return
         }
 
         if (!isValidEmail(cleanEmail)) {
-            errorMessage = "Enter a valid email address."
+            errorMessage = appContext.getString(R.string.error_auth_email)
             return
         }
 
@@ -154,7 +156,7 @@ class AuthViewModel : ViewModel() {
 
         if (!isValidEmail(cleanEmail)) {
             errorMessage =
-                "Enter your email above, then tap Forgot password."
+                appContext.getString(R.string.error_auth_reset_hint)
             return
         }
 
@@ -166,7 +168,7 @@ class AuthViewModel : ViewModel() {
 
                 if (task.isSuccessful) {
                     infoMessage =
-                        "If an account exists for that email, a reset link has been sent."
+                        appContext.getString(R.string.auth_reset_sent)
                 } else {
                     errorMessage = friendlyError(task.exception)
                 }
@@ -203,16 +205,16 @@ class AuthViewModel : ViewModel() {
     ): String? = when {
 
         name.isEmpty() ->
-            "Enter your full name."
+            appContext.getString(R.string.error_auth_name)
 
         !isValidEmail(email) ->
-            "Enter a valid email address."
+            appContext.getString(R.string.error_auth_email)
 
         password.length < 8 || !password.any { it.isDigit() } ->
-            "Password must be at least 8 characters and include a number."
+            appContext.getString(R.string.error_auth_password_rule)
 
         password != confirmPassword ->
-            "Passwords do not match."
+            appContext.getString(R.string.error_auth_password_match)
 
         else -> null
     }
@@ -221,22 +223,21 @@ class AuthViewModel : ViewModel() {
     private fun friendlyError(e: Exception?): String = when (e) {
 
         is FirebaseAuthInvalidUserException ->
-            "No account found with that email."
+            appContext.getString(R.string.error_auth_user_missing)
 
         is FirebaseAuthInvalidCredentialsException ->
-            "Incorrect email or password."
+            appContext.getString(R.string.error_auth_credentials)
 
         is FirebaseAuthUserCollisionException ->
-            "An account with that email already exists."
+            appContext.getString(R.string.error_auth_collision)
 
         is FirebaseNetworkException ->
-            "No internet connection. Please try again."
+            appContext.getString(R.string.error_auth_network)
 
         is FirebaseTooManyRequestsException ->
-            "Too many attempts. Please wait a moment and try again."
+            appContext.getString(R.string.error_auth_rate_limit)
 
         else ->
-            e?.localizedMessage
-                ?: "Something went wrong. Please try again."
+            appContext.getString(R.string.error_auth_generic)
     }
 }

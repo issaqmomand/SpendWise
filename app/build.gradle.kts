@@ -58,7 +58,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
 
-    // AndroidX
+    // AndroidX: persists and applies per-app language selections on Android 8–12.
+    implementation("androidx.appcompat:appcompat:1.8.0")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 

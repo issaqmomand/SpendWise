@@ -1,4 +1,11 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.budget
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
+
+import com.group3.spendwise.model.SpendTransaction
+import com.group3.spendwise.model.TransactionKind
 
 import android.content.Context
 import androidx.compose.foundation.Canvas
@@ -100,7 +107,7 @@ private fun budgetMoney(value: Double): String {
 
 // Category colors.
 private fun categoryDot(category: String): Color {
-    return when (category.lowercase(Locale.ENGLISH)) {
+    return when (category.lowercase(Locale.getDefault())) {
         "food", "groceries" -> Color(0xFF688B70)
         "transportation", "transport" -> Color(0xFF90B1C1)
         "shopping" -> Color(0xFFBCAE88)
@@ -254,7 +261,7 @@ fun BudgetScreen(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Monthly Budget",
+                    text = stringResource(R.string.budget_title),
                     fontSize = 32.sp,
                     color = colors.foreground
                 )
@@ -262,14 +269,14 @@ fun BudgetScreen(
                 Spacer(Modifier.height(2.dp))
 
                 Text(
-                    text = "Make room for what matters.",
+                    text = stringResource(R.string.budget_tagline),
                     fontSize = 14.sp,
                     color = colors.muted
                 )
             }
 
             Text(
-                text = "CAD",
+                text = stringResource(R.string.currency_cad),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.muted,
@@ -322,7 +329,7 @@ fun BudgetScreen(
                         text = selectedMonth.format(
                             DateTimeFormatter.ofPattern(
                                 "MMMM yyyy",
-                                Locale.ENGLISH
+                                Locale.getDefault()
                             )
                         ),
                         color = colors.foreground,
@@ -335,7 +342,7 @@ fun BudgetScreen(
 
                     Icon(
                         imageVector = Icons.Outlined.KeyboardArrowDown,
-                        contentDescription = "Choose month",
+                        contentDescription = stringResource(R.string.budget_choose_month),
                         tint = colors.foreground,
                         modifier = Modifier.size(19.dp)
                     )
@@ -357,7 +364,7 @@ fun BudgetScreen(
                                     month.format(
                                         DateTimeFormatter.ofPattern(
                                             "MMMM yyyy",
-                                            Locale.ENGLISH
+                                            Locale.getDefault()
                                         )
                                     )
                                 )
@@ -415,14 +422,14 @@ fun BudgetScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Monthly Budget",
+                            text = stringResource(R.string.budget_title),
                             fontSize = 14.sp,
                             color = colors.muted
                         )
 
                         Text(
                             text = target?.let(::budgetMoney)
-                                ?: "Not set",
+                                ?: stringResource(R.string.budget_not_set),
                             fontSize = if (target == null) {
                                 23.sp
                             } else {
@@ -436,13 +443,13 @@ fun BudgetScreen(
                         Spacer(Modifier.height(3.dp))
 
                         BudgetAmountLine(
-                            label = "Total Spent",
+                            label = stringResource(R.string.budget_total_spent),
                             value = budgetMoney(spent),
                             valueColor = colors.foreground
                         )
 
                         BudgetAmountLine(
-                            label = "Remaining",
+                            label = stringResource(R.string.budget_remaining),
                             value = remaining?.let(::budgetMoney)
                                 ?: "—",
                             valueColor = if (
@@ -465,7 +472,7 @@ fun BudgetScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Monthly budget used",
+                        text = stringResource(R.string.budget_used),
                         color = colors.muted,
                         fontSize = 14.sp
                     )
@@ -500,7 +507,7 @@ fun BudgetScreen(
                     Spacer(Modifier.height(7.dp))
 
                     Text(
-                        text = "Set your monthly budget below to begin tracking.",
+                        text = stringResource(R.string.budget_set_prompt),
                         color = colors.muted,
                         fontSize = 12.sp
                     )
@@ -521,14 +528,14 @@ fun BudgetScreen(
                 verticalArrangement = Arrangement.spacedBy(9.dp)
             ) {
                 Text(
-                    text = "Category spending",
+                    text = stringResource(R.string.budget_category_spending),
                     color = colors.foreground,
                     fontSize = 20.sp
                 )
 
                 if (categoryTotals.isEmpty()) {
                     Text(
-                        text = "No expenses recorded for this month.",
+                        text = stringResource(R.string.budget_no_expenses),
                         color = colors.muted,
                         fontSize = 14.sp
                     )
@@ -550,7 +557,7 @@ fun BudgetScreen(
                             Spacer(Modifier.width(10.dp))
 
                             Text(
-                                text = category,
+                                text = localizedCategory(category),
                                 color = colors.foreground,
                                 fontSize = 15.sp,
                                 modifier = Modifier.weight(1f),
@@ -599,7 +606,7 @@ fun BudgetScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Set/Edit Monthly Budget",
+                        text = stringResource(R.string.budget_edit),
                         color = colors.accent,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold
@@ -632,7 +639,7 @@ fun BudgetScreen(
             Spacer(Modifier.width(9.dp))
 
             Text(
-                text = "Alert me at 90%",
+                text = stringResource(R.string.budget_alert_90),
                 color = colors.warning,
                 fontSize = 15.sp,
                 modifier = Modifier.weight(1f)
@@ -697,7 +704,7 @@ fun BudgetScreen(
                         Spacer(Modifier.width(9.dp))
 
                         Text(
-                            text = "Budget Exceeded! You've exceeded your monthly spending limit.",
+                            text = stringResource(R.string.budget_exceeded_message),
                             color = colors.error,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -706,9 +713,7 @@ fun BudgetScreen(
                     }
 
                     Text(
-                        text = "${budgetMoney(spent)} / " +
-                                "${budgetMoney(target ?: 0.0)} budget · " +
-                                "${budgetMoney(spent - (target ?: 0.0))} overspent",
+                        text = stringResource(R.string.budget_exceeded_amounts, budgetMoney(spent), budgetMoney(target ?: 0.0), budgetMoney(spent - (target ?: 0.0))),
                         color = colors.error,
                         fontSize = 13.sp
                     )
@@ -718,7 +723,7 @@ fun BudgetScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "Monthly budget used",
+                            text = stringResource(R.string.budget_used),
                             color = colors.muted,
                             fontSize = 13.sp
                         )
@@ -748,13 +753,7 @@ fun BudgetScreen(
             }
         } else if (alertsEnabled && nearLimit) {
             Text(
-                text = "You've used ${
-                    String.format(
-                        Locale.CANADA,
-                        "%.1f",
-                        percent ?: 0.0
-                    )
-                }% of this month's budget.",
+                text = stringResource(R.string.budget_warning_used, String.format(Locale.getDefault(), "%.1f", percent ?: 0.0)),
                 color = colors.warning,
                 fontSize = 14.sp,
                 modifier = Modifier
@@ -779,7 +778,7 @@ fun BudgetScreen(
             },
             title = {
                 Text(
-                    text = "Set/Edit Monthly Budget",
+                    text = stringResource(R.string.budget_edit),
                     color = colors.foreground,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -789,7 +788,7 @@ fun BudgetScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Monthly income: ${budgetMoney(monthlyIncome)}",
+                        text = stringResource(R.string.budget_monthly_income, budgetMoney(monthlyIncome)),
                         color = colors.muted,
                         fontSize = 14.sp
                     )
@@ -810,7 +809,7 @@ fun BudgetScreen(
                         modifier = Modifier.fillMaxWidth(),
                         label = {
                             Text(
-                                text = "Monthly amount · CAD",
+                                text = stringResource(R.string.budget_amount_cad),
                                 fontSize = 12.sp
                             )
                         },
@@ -844,13 +843,13 @@ fun BudgetScreen(
                         val amount = targetInput.toDoubleOrNull()
                         budgetErrorText = when {
                             ownerUid.isBlank() ->
-                                "Please sign in to save your budget."
+                                context.getString(R.string.budget_sign_in_error)
                             amount == null || !amount.isFinite() || amount <= 0.0 ->
-                                "Enter a budget greater than zero."
+                                context.getString(R.string.budget_positive_error)
                             monthlyIncome <= 0.0 ->
-                                "Add income for this month before setting a budget."
+                                context.getString(R.string.budget_income_required)
                             amount > monthlyIncome ->
-                                "Budget cannot exceed monthly income (${budgetMoney(monthlyIncome)})."
+                                context.getString(R.string.budget_income_max_error, budgetMoney(monthlyIncome))
                             else -> {
                                 preferences.edit()
                                     .putString(budgetKey, amount.toString())
@@ -867,7 +866,7 @@ fun BudgetScreen(
                     ),
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text("Save", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.action_save), fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
@@ -877,7 +876,7 @@ fun BudgetScreen(
                         budgetErrorText = ""
                     }
                 ) {
-                    Text("Cancel", color = colors.muted)
+                    Text(stringResource(R.string.action_cancel), color = colors.muted)
                 }
             },
             containerColor = colors.surface,
@@ -909,9 +908,9 @@ private fun MonthArrowButton(
                 Icons.Outlined.ChevronRight
             },
             contentDescription = if (previous) {
-                "Previous month"
+                stringResource(R.string.budget_prev_month)
             } else {
-                "Next month"
+                stringResource(R.string.budget_next_month)
             },
             tint = colors.foreground,
             modifier = Modifier.size(26.dp)
@@ -979,7 +978,7 @@ private fun BudgetRing(
             )
 
             Text(
-                text = "used",
+                text = stringResource(R.string.budget_used_short),
                 color = colors.muted,
                 fontSize = 13.sp
             )

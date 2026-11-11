@@ -1,4 +1,8 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.auth
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -57,14 +61,14 @@ fun LoginScreen(
         Spacer(Modifier.height(40.dp))
 
         Text(
-            text = "Welcome back!",
+            text = stringResource(R.string.login_welcome),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "From coffee runs to course books, keep your everyday spending in view.",
+            text = stringResource(R.string.login_description),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -72,20 +76,20 @@ fun LoginScreen(
         Spacer(Modifier.height(24.dp))
 
         AppTextField(
-            label = "Email",
+            label = stringResource(R.string.auth_email),
             value = email,
             onValueChange = { email = it },
-            placeholder = "you@example.com",
+            placeholder = stringResource(R.string.auth_email_hint),
             keyboardType = KeyboardType.Email
         )
 
         Spacer(Modifier.height(12.dp))
 
         PasswordField(
-            label = "Password",
+            label = stringResource(R.string.auth_password),
             value = password,
             onValueChange = { password = it },
-            placeholder = "Enter your password",
+            placeholder = stringResource(R.string.login_password_hint),
             imeAction = ImeAction.Done
         )
 
@@ -94,7 +98,7 @@ fun LoginScreen(
             modifier = Modifier.align(Alignment.End)
         ) {
             Text(
-                text = "Forgot password?",
+                text = stringResource(R.string.login_forgot),
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold
             )
@@ -106,7 +110,7 @@ fun LoginScreen(
         )
 
         PrimaryButton(
-            text = "Log In",
+            text = stringResource(R.string.login_button),
             onClick = { authViewModel.login(email, password) },
             isLoading = authViewModel.isLoading
         )
@@ -119,13 +123,13 @@ fun LoginScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "New to SpendWise?",
+                text = stringResource(R.string.login_new_user),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             TextButton(onClick = onGoToRegister) {
                 Text(
-                    text = "Create Account",
+                    text = stringResource(R.string.register_button),
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -135,7 +139,7 @@ fun LoginScreen(
         Spacer(Modifier.height(32.dp))
 
         Text(
-            text = "Tracked by you. No bank connection.",
+            text = stringResource(R.string.app_privacy_line),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
