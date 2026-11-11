@@ -1,4 +1,18 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.navigation
+
+import com.group3.spendwise.R
+import com.group3.spendwise.ui.screens.budget.BudgetAlertObserver
+import com.group3.spendwise.ui.screens.budget.BudgetScreen
+import com.group3.spendwise.ui.screens.dashboard.DashboardScreen
+import com.group3.spendwise.ui.screens.insights.InsightsScreen
+import com.group3.spendwise.ui.screens.transactions.AddTransactionScreen
+import com.group3.spendwise.ui.screens.transactions.TransactionDetailsScreen
+import com.group3.spendwise.ui.screens.transactions.TransactionsScreen
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
+
+import com.group3.spendwise.model.SpendTransaction
+import com.group3.spendwise.model.TransactionKind
 
 import android.content.Intent
 import android.net.Uri
@@ -21,41 +35,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
 import com.group3.spendwise.TransactionSuccessSound
-import com.group3.spendwise.data.local.SpendWiseDatabase
-import com.group3.spendwise.data.local.TransactionEntity
-import kotlinx.coroutines.flow.flowOf
+import com.group3.spendwise.data.TransactionRepository
 import kotlinx.coroutines.launch
 
 private data class BottomTab(val label: String, val icon: ImageVector)
-
-private fun TransactionEntity.toSpendTransaction() = SpendTransaction(
-    id = id,
-    description = description,
-    amount = amount,
-    category = category,
-    date = date,
-    kind = if (kind == TransactionKind.INCOME.name) {
-        TransactionKind.INCOME
-    } else {
-        TransactionKind.EXPENSE
-    },
-    notes = notes,
-    receiptUri = receiptUri,
-    voiceNotePath = voiceNotePath
-)
-
-private fun SpendTransaction.toEntity(ownerUid: String) = TransactionEntity(
-    id = id,
-    ownerUid = ownerUid,
-    description = description,
-    amount = amount,
-    category = category,
-    date = date,
-    kind = kind.name,
-    notes = notes,
-    receiptUri = receiptUri,
-    voiceNotePath = voiceNotePath
-)
 
 @Composable
 fun MainScreen(
@@ -76,19 +59,12 @@ fun MainScreen(
         onDispose { successSound.release() }
     }
 
-    val transactionDao = remember(context) {
-        SpendWiseDatabase.getInstance(context).transactionDao()
-    }
+    val repository = remember(context) { TransactionRepository(context) }
     val ownerUid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
-    val transactionFlow = remember(transactionDao, ownerUid) {
-        if (ownerUid.isNotBlank()) {
-            transactionDao.observeForUser(ownerUid)
-        } else {
-            flowOf(emptyList<TransactionEntity>())
-        }
+    val transactionFlow = remember(repository, ownerUid) {
+        repository.observeForUser(ownerUid)
     }
-    val savedEntities by transactionFlow.collectAsState(initial = emptyList())
-    val transactions = savedEntities.map { it.toSpendTransaction() }
+    val transactions by transactionFlow.collectAsState(initial = emptyList())
 
     var selectedTab by rememberSaveable(ownerUid) { mutableIntStateOf(0) }
     var transactionRoute by rememberSaveable(ownerUid) { mutableStateOf("tabs") }
@@ -110,17 +86,17 @@ fun MainScreen(
         if (ownerUid.isNotBlank()) {
             scope.launch {
                 try {
-                    val deleted = transactionDao.delete(transaction.id, ownerUid)
+                    val deleted = repository.delete(ownerUid, transaction.id)
                     if (deleted > 0) {
                         transactionRoute = "tabs"
                         selectedTab = 1
                         selectedTransactionId = null
-                        snackbarHostState.showSnackbar("Transaction deleted")
+                        snackbarHostState.showSnackbar(context.getString(R.string.transaction_deleted))
                     } else {
-                        snackbarHostState.showSnackbar("Transaction not found")
+                        snackbarHostState.showSnackbar(context.getString(R.string.transaction_not_found))
                     }
                 } catch (e: Exception) {
-                    snackbarHostState.showSnackbar("Unable to delete transaction")
+                    snackbarHostState.showSnackbar(context.getString(R.string.transaction_delete_failed))
                 }
             }
         }
@@ -137,7 +113,7 @@ fun MainScreen(
                 )
             } catch (e: Exception) {
                 scope.launch {
-                    snackbarHostState.showSnackbar("Unable to open receipt")
+                    snackbarHostState.showSnackbar(context.getString(R.string.transaction_receipt_open_failed))
                 }
             }
         }
@@ -145,11 +121,11 @@ fun MainScreen(
 
     // Original five-tab bottom bar, unchanged.
     val tabs = listOf(
-        BottomTab("Dashboard", Icons.Outlined.Dashboard),
-        BottomTab("Transactions", Icons.Outlined.SwapHoriz),
-        BottomTab("Add", Icons.Filled.Add),
-        BottomTab("Budget", Icons.Outlined.AccountBalanceWallet),
-        BottomTab("Insights", Icons.Outlined.Insights)
+        BottomTab(stringResource(R.string.nav_dashboard), Icons.Outlined.Dashboard),
+        BottomTab(stringResource(R.string.nav_transactions), Icons.Outlined.SwapHoriz),
+        BottomTab(stringResource(R.string.nav_add), Icons.Filled.Add),
+        BottomTab(stringResource(R.string.nav_budget), Icons.Outlined.AccountBalanceWallet),
+        BottomTab(stringResource(R.string.nav_insights), Icons.Outlined.Insights)
     )
 
     Scaffold(
@@ -166,7 +142,7 @@ fun MainScreen(
                             selectedTab = index
                         },
                         icon = {
-                            if (tab.label == "Add") {
+                            if (index == 2) {
                                 Box(
                                     modifier = Modifier
                                         .size(40.dp)
@@ -230,31 +206,20 @@ fun MainScreen(
                             if (ownerUid.isNotBlank()) {
                                 scope.launch {
                                     try {
-                                        val updated = transactionDao.updateWithVoiceNote(
-                                            transactionId = updatedTransaction.id,
-                                            ownerUid = ownerUid,
-                                            description = updatedTransaction.description,
-                                            amount = updatedTransaction.amount,
-                                            category = updatedTransaction.category,
-                                            date = updatedTransaction.date,
-                                            kind = updatedTransaction.kind.name,
-                                            notes = updatedTransaction.notes,
-                                            receiptUri = updatedTransaction.receiptUri,
-                                            voiceNotePath = updatedTransaction.voiceNotePath
-                                        )
+                                        val updated = repository.update(ownerUid, updatedTransaction)
                                         if (updated > 0) {
                                             // Only play after Room confirms the update.
                                             successSound.play()
                                             transactionRoute = "details"
                                             snackbarHostState.showSnackbar(
-                                                "Transaction updated successfully"
+                                                context.getString(R.string.transaction_updated)
                                             )
                                         } else {
-                                            snackbarHostState.showSnackbar("Transaction not found")
+                                            snackbarHostState.showSnackbar(context.getString(R.string.transaction_not_found))
                                         }
                                     } catch (e: Exception) {
                                         snackbarHostState.showSnackbar(
-                                            "Unable to update transaction"
+                                            context.getString(R.string.transaction_update_failed)
                                         )
                                     }
                                 }
@@ -269,12 +234,12 @@ fun MainScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("Loading transaction...", color = colors.onBackground)
+                        Text(stringResource(R.string.transaction_loading), color = colors.onBackground)
                         Spacer(Modifier.height(12.dp))
                         TextButton(onClick = {
                             transactionRoute = "tabs"
                             selectedTab = 1
-                        }) { Text("Back to Transactions") }
+                        }) { Text(stringResource(R.string.transaction_back_to_list)) }
                     }
                 }
 
@@ -314,30 +279,28 @@ fun MainScreen(
                             if (ownerUid.isBlank()) {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
-                                        "Please sign in to save transactions"
+                                        context.getString(R.string.transaction_auth_required)
                                     )
                                 }
                             } else {
                                 scope.launch {
                                     try {
-                                        val savedId = transactionDao.insert(
-                                            newTransaction.toEntity(ownerUid).copy(id = 0L)
-                                        )
+                                        val savedId = repository.insert(ownerUid, newTransaction)
                                         if (savedId > 0L) {
                                             // Only play after Room confirms the insert.
                                             successSound.play()
                                             selectedTab = 1
                                             snackbarHostState.showSnackbar(
-                                                "Transaction saved successfully"
+                                                context.getString(R.string.transaction_saved)
                                             )
                                         } else {
                                             snackbarHostState.showSnackbar(
-                                                "Unable to save transaction"
+                                                context.getString(R.string.transaction_save_failed)
                                             )
                                         }
                                     } catch (e: Exception) {
                                         snackbarHostState.showSnackbar(
-                                            "Unable to save transaction"
+                                            context.getString(R.string.transaction_save_failed)
                                         )
                                     }
                                 }

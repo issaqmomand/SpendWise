@@ -1,4 +1,11 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.insights
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
+
+import com.group3.spendwise.model.SpendTransaction
+import com.group3.spendwise.model.TransactionKind
 
 import android.graphics.Paint as AndroidPaint
 import android.graphics.Typeface
@@ -108,7 +115,7 @@ private fun insightsMoney(value: Double): String {
 
 // Consistent category colors.
 private fun categoryColor(category: String): Color {
-    return when (category.lowercase(Locale.ENGLISH)) {
+    return when (category.lowercase(Locale.getDefault())) {
         "food", "groceries" -> insightsGreen
         "transportation", "transport" -> insightsBlue
         "shopping" -> insightsGold
@@ -205,14 +212,14 @@ fun InsightsScreen(
     val monthName = selectedMonth.format(
         DateTimeFormatter.ofPattern(
             "MMMM",
-            Locale.ENGLISH
+            Locale.getDefault()
         )
     )
 
     val monthLabel = selectedMonth.format(
         DateTimeFormatter.ofPattern(
             "MMMM yyyy",
-            Locale.ENGLISH
+            Locale.getDefault()
         )
     )
 
@@ -276,7 +283,7 @@ fun InsightsScreen(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "Spending Insights",
+                    text = stringResource(R.string.insights_title),
                     fontSize = 30.sp,
                     color = colors.foreground
                 )
@@ -284,14 +291,14 @@ fun InsightsScreen(
                 Spacer(Modifier.height(1.dp))
 
                 Text(
-                    text = "Small insights. Smarter habits.",
+                    text = stringResource(R.string.insights_tagline),
                     fontSize = 14.sp,
                     color = colors.muted
                 )
             }
 
             Text(
-                text = "CAD",
+                text = stringResource(R.string.currency_cad),
                 fontSize = 12.sp,
                 color = colors.muted,
                 fontWeight = FontWeight.SemiBold,
@@ -348,7 +355,7 @@ fun InsightsScreen(
 
                     Icon(
                         imageVector = Icons.Outlined.KeyboardArrowDown,
-                        contentDescription = "Choose month",
+                        contentDescription = stringResource(R.string.budget_choose_month),
                         tint = colors.foreground,
                         modifier = Modifier.size(19.dp)
                     )
@@ -370,7 +377,7 @@ fun InsightsScreen(
                                     month.format(
                                         DateTimeFormatter.ofPattern(
                                             "MMMM yyyy",
-                                            Locale.ENGLISH
+                                            Locale.getDefault()
                                         )
                                     )
                                 )
@@ -406,13 +413,13 @@ fun InsightsScreen(
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Text(
-                    text = "${insightsMoney(totalSpent)} spent this month",
+                    text = stringResource(R.string.insights_spent_month, insightsMoney(totalSpent)),
                     fontSize = 23.sp,
                     color = colors.foreground
                 )
 
                 Text(
-                    text = "A breakdown of your $monthName expenses",
+                    text = stringResource(R.string.insights_breakdown, monthName),
                     fontSize = 13.sp,
                     color = colors.muted
                 )
@@ -449,7 +456,7 @@ fun InsightsScreen(
                         ) {
                             if (slices.isEmpty()) {
                                 Text(
-                                    text = "No expense data",
+                                    text = stringResource(R.string.insights_no_data),
                                     fontSize = 13.sp,
                                     color = colors.muted
                                 )
@@ -484,13 +491,13 @@ fun InsightsScreen(
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Text(
-                    text = "Income vs. expenses",
+                    text = stringResource(R.string.insights_income_expenses),
                     color = colors.foreground,
                     fontSize = 19.sp
                 )
 
                 Text(
-                    text = "$monthLabel · CAD · scale starts at \$0",
+                    text = stringResource(R.string.insights_chart_context, monthLabel),
                     color = colors.muted,
                     fontSize = 12.sp
                 )
@@ -542,7 +549,7 @@ fun InsightsScreen(
 
                 Column {
                     Text(
-                        text = "YOUR MONTH AT A GLANCE",
+                        text = stringResource(R.string.insights_month_glance),
                         color = colors.accent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
@@ -552,9 +559,9 @@ fun InsightsScreen(
 
                     Text(
                         text = if (highestCategory == null) {
-                            "No expense insights yet for this month."
+                            stringResource(R.string.insights_no_summary)
                         } else {
-                            "$highestCategory is your highest spending category this month."
+                            stringResource(R.string.insights_top_category, localizedCategory(highestCategory))
                         },
                         color = colors.foreground,
                         fontSize = 14.sp,
@@ -589,9 +596,9 @@ private fun InsightsMonthButton(
                 Icons.Outlined.ChevronRight
             },
             contentDescription = if (previous) {
-                "Previous month"
+                stringResource(R.string.budget_prev_month)
             } else {
-                "Next month"
+                stringResource(R.string.budget_next_month)
             },
             tint = colors.foreground,
             modifier = Modifier.size(25.dp)
@@ -688,7 +695,7 @@ private fun InsightsDonutChart(
             )
 
             Text(
-                text = "total spent",
+                text = stringResource(R.string.insights_total_spent),
                 fontSize = 12.sp,
                 color = colors.muted,
                 textAlign = TextAlign.Center
@@ -727,7 +734,7 @@ private fun CategoryLegendRow(
         Spacer(Modifier.width(6.dp))
 
         Text(
-            text = slice.category,
+            text = localizedCategory(slice.category),
             color = colors.foreground,
             fontSize = if (compact) {
                 11.sp
@@ -742,7 +749,7 @@ private fun CategoryLegendRow(
         Spacer(Modifier.width(3.dp))
 
         Text(
-            text = "$percentage%",
+            text = stringResource(R.string.insights_percentage, percentage),
             color = colors.foreground,
             fontSize = if (compact) {
                 11.sp
@@ -799,6 +806,8 @@ private fun InsightsBarChart(
     modifier: Modifier = Modifier
 ) {
     val colors = insightsPalette()
+    val incomeLabel = stringResource(R.string.type_income)
+    val expensesLabel = stringResource(R.string.filter_expenses)
     val axisMax = chartAxisMax(
         income = income,
         expenses = expenses
@@ -948,7 +957,7 @@ private fun InsightsBarChart(
             }
 
             // Draw amount above each bar.
-            amountPaint.color = if (label == "Income") {
+            amountPaint.color = if (label == incomeLabel) {
                 colors.accent.toArgb()
             } else {
                 colors.foreground.toArgb()
@@ -975,14 +984,14 @@ private fun InsightsBarChart(
             value = income,
             centerX = incomeCenter,
             color = colors.accent,
-            label = "Income"
+            label = incomeLabel
         )
 
         drawBar(
             value = expenses,
             centerX = expenseCenter,
             color = colors.foreground,
-            label = "Expenses"
+            label = expensesLabel
         )
     }
 }

@@ -1,4 +1,11 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.transactions
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
+
+import com.group3.spendwise.model.SpendTransaction
+import com.group3.spendwise.model.TransactionKind
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -132,10 +139,10 @@ fun TransactionDetailsScreen(
     val isExpense = transaction.kind == TransactionKind.EXPENSE
     val formattedAmount = String.format(Locale.CANADA, "%,.2f", transaction.amount)
     val amountText = if (isExpense) "-$$formattedAmount" else "+$$formattedAmount"
-    val formattedDate = remember(transaction.date) {
+    val formattedDate = remember(transaction.date, Locale.getDefault()) {
         runCatching {
             LocalDate.parse(transaction.date).format(
-                DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH)
+                DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.getDefault())
             )
         }.getOrElse { transaction.date }
     }
@@ -155,11 +162,11 @@ fun TransactionDetailsScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Outlined.ArrowBack, contentDescription = "Back", tint = colors.foreground)
+                Icon(Icons.Outlined.ArrowBack, contentDescription = stringResource(R.string.action_back), tint = colors.foreground)
             }
             Spacer(Modifier.width(6.dp))
             Text(
-                "Transaction Details",
+                stringResource(R.string.details_title),
                 color = colors.foreground,
                 fontSize = 19.sp,
                 fontWeight = FontWeight.SemiBold
@@ -191,7 +198,7 @@ fun TransactionDetailsScreen(
             }
             Spacer(Modifier.height(7.dp))
             Text(
-                if (isExpense) "Expense" else "Income",
+                if (isExpense) stringResource(R.string.type_expense) else stringResource(R.string.type_income),
                 fontSize = 12.sp,
                 color = colors.summaryText.copy(alpha = 0.88f)
             )
@@ -221,33 +228,33 @@ fun TransactionDetailsScreen(
 
         DetailsCard {
             Text(
-                "Transaction Information",
+                stringResource(R.string.details_info),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.foreground
             )
             Spacer(Modifier.height(8.dp))
-            InfoRow("Description", transaction.description)
+            InfoRow(stringResource(R.string.details_description), transaction.description)
             HorizontalDivider(color = colors.divider, thickness = 1.dp)
-            InfoRow("Category", transaction.category)
+            InfoRow(stringResource(R.string.details_category), localizedCategory(transaction.category))
             HorizontalDivider(color = colors.divider, thickness = 1.dp)
-            InfoRow("Date", formattedDate)
+            InfoRow(stringResource(R.string.details_date), formattedDate)
             HorizontalDivider(color = colors.divider, thickness = 1.dp)
-            InfoRow("Type", if (isExpense) "Expense" else "Income")
+            InfoRow(stringResource(R.string.details_type), if (isExpense) stringResource(R.string.type_expense) else stringResource(R.string.type_income))
         }
 
         Spacer(Modifier.height(9.dp))
 
         DetailsCard {
             Text(
-                "Notes",
+                stringResource(R.string.details_notes),
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = colors.foreground
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                transaction.notes.ifBlank { "No notes added." },
+                transaction.notes.ifBlank { stringResource(R.string.details_no_notes) },
                 fontSize = 12.sp,
                 color = if (transaction.notes.isBlank()) colors.muted else colors.foreground
             )
@@ -265,7 +272,7 @@ fun TransactionDetailsScreen(
                 )
                 Spacer(Modifier.width(7.dp))
                 Text(
-                    "Receipt Attachment",
+                    stringResource(R.string.details_receipt),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.foreground
@@ -273,13 +280,13 @@ fun TransactionDetailsScreen(
             }
             Spacer(Modifier.height(8.dp))
             if (transaction.receiptUri.isNullOrBlank()) {
-                Text("No receipt attached.", color = colors.muted, fontSize = 12.sp)
+                Text(stringResource(R.string.details_no_receipt), color = colors.muted, fontSize = 12.sp)
             } else {
                 TextButton(
                     onClick = { onViewReceipt(transaction.receiptUri.orEmpty()) },
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
                 ) {
-                    Text("View Receipt", color = colors.accent, fontSize = 13.sp)
+                    Text(stringResource(R.string.transaction_view_receipt), color = colors.accent, fontSize = 13.sp)
                 }
             }
         }
@@ -297,7 +304,7 @@ fun TransactionDetailsScreen(
                 )
                 Spacer(Modifier.width(7.dp))
                 Text(
-                    "Voice Note",
+                    stringResource(R.string.details_voice),
                     color = colors.foreground,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
@@ -308,7 +315,7 @@ fun TransactionDetailsScreen(
 
             if (!hasVoiceNote) {
                 Text(
-                    "No voice note attached.",
+                    stringResource(R.string.details_no_voice),
                     fontSize = 12.sp,
                     color = colors.muted
                 )
@@ -323,7 +330,7 @@ fun TransactionDetailsScreen(
                             try {
                                 val file = File(voicePath!!)
                                 if (!file.exists()) {
-                                    playbackError = "Recording file not found."
+                                    playbackError = context.getString(R.string.details_missing_recording)
                                 } else {
                                     audioPlayer.playRecording(voicePath) {
                                         isPlaying = false
@@ -333,7 +340,7 @@ fun TransactionDetailsScreen(
                                 }
                             } catch (_: Exception) {
                                 isPlaying = false
-                                playbackError = "Unable to play voice note."
+                                playbackError = context.getString(R.string.details_voice_error)
                             }
                         }
                     },
@@ -352,7 +359,7 @@ fun TransactionDetailsScreen(
                         modifier = Modifier.size(15.dp)
                     )
                     Spacer(Modifier.width(3.dp))
-                    Text(if (isPlaying) "Stop" else "Play Recording", fontSize = 12.sp)
+                    Text(if (isPlaying) stringResource(R.string.action_stop) else stringResource(R.string.details_play_recording), fontSize = 12.sp)
                 }
             }
 
@@ -382,7 +389,7 @@ fun TransactionDetailsScreen(
             ) {
                 Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(15.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Edit", fontSize = 13.sp)
+                Text(stringResource(R.string.action_edit), fontSize = 13.sp)
             }
             OutlinedButton(
                 onClick = {
@@ -396,7 +403,7 @@ fun TransactionDetailsScreen(
             ) {
                 Icon(Icons.Outlined.DeleteOutline, contentDescription = null, modifier = Modifier.size(15.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Delete", fontSize = 13.sp)
+                Text(stringResource(R.string.action_delete), fontSize = 13.sp)
             }
         }
     }

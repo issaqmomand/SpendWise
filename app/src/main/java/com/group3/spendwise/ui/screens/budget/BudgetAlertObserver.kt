@@ -1,5 +1,8 @@
 
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.budget
+
+import com.group3.spendwise.model.SpendTransaction
+import com.group3.spendwise.model.TransactionKind
 
 import android.Manifest
 import android.app.Activity

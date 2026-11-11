@@ -1,4 +1,8 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.components
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -74,10 +78,10 @@ fun VoiceNoteSection(
 
             audioRecorder.startRecording()
             isRecording = true
-            message = "Recording in progress..."
+            message = context.getString(R.string.voice_recording)
         } catch (e: Exception) {
             isRecording = false
-            message = "Unable to start recording."
+            message = context.getString(R.string.voice_start_error)
         }
     }
 
@@ -87,7 +91,7 @@ fun VoiceNoteSection(
         if (granted) {
             beginRecording()
         } else {
-            message = "Microphone permission is required."
+            message = context.getString(R.string.voice_permission_error)
         }
     }
 
@@ -95,7 +99,7 @@ fun VoiceNoteSection(
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "Voice Note · optional",
+            text = stringResource(R.string.voice_optional),
             color = voiceMuted,
             fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp
@@ -112,9 +116,9 @@ fun VoiceNoteSection(
 
                         if (savedPath != null) {
                             onVoiceNotePathChange(savedPath)
-                            message = "Voice note recorded."
+                            message = context.getString(R.string.voice_recorded)
                         } else {
-                            message = "Recording was too short or could not be saved."
+                            message = context.getString(R.string.voice_short_error)
                         }
                     },
                     modifier = Modifier
@@ -130,7 +134,7 @@ fun VoiceNoteSection(
                         contentDescription = null
                     )
                     Text(
-                        text = " Stop Recording",
+                        text = stringResource(R.string.voice_stop_recording),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -139,7 +143,7 @@ fun VoiceNoteSection(
                 Spacer(Modifier.height(6.dp))
 
                 Text(
-                    text = "Microphone is active",
+                    text = stringResource(R.string.voice_mic_active),
                     color = voiceRed,
                     fontSize = 12.sp
                 )
@@ -179,7 +183,7 @@ fun VoiceNoteSection(
                     )
 
                     Text(
-                        text = "  Add Voice Note",
+                        text = stringResource(R.string.voice_add),
                         color = voiceGreen,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold
@@ -189,7 +193,7 @@ fun VoiceNoteSection(
 
             else -> {
                 Text(
-                    text = "Voice note added",
+                    text = stringResource(R.string.voice_added),
                     color = voiceGreen,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
@@ -217,7 +221,7 @@ fun VoiceNoteSection(
                                     message = ""
                                 } catch (e: Exception) {
                                     isPlaying = false
-                                    message = "Unable to play voice note."
+                                    message = context.getString(R.string.details_voice_error)
                                 }
                             }
                         },
@@ -231,7 +235,7 @@ fun VoiceNoteSection(
                             contentDescription = null
                         )
                         Text(
-                            text = if (isPlaying) " Stop" else " Play Recording",
+                            text = if (isPlaying) stringResource(R.string.voice_stop) else stringResource(R.string.voice_play),
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -262,7 +266,7 @@ fun VoiceNoteSection(
                             tint = voiceGreen
                         )
                         Text(
-                            text = " Redo",
+                            text = stringResource(R.string.voice_redo),
                             color = voiceGreen
                         )
                     }
@@ -272,7 +276,7 @@ fun VoiceNoteSection(
                             audioRecorder.stopPlayback()
                             isPlaying = false
                             onVoiceNotePathChange(null)
-                            message = "Voice note removed."
+                            message = context.getString(R.string.voice_removed)
                         }
                     ) {
                         Icon(
@@ -281,7 +285,7 @@ fun VoiceNoteSection(
                             tint = voiceRed
                         )
                         Text(
-                            text = " Remove",
+                            text = stringResource(R.string.voice_remove),
                             color = voiceRed
                         )
                     }

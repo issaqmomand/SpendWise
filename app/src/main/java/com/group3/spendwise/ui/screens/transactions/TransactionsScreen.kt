@@ -1,4 +1,11 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.transactions
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
+
+import com.group3.spendwise.model.SpendTransaction
+import com.group3.spendwise.model.TransactionKind
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -66,21 +73,6 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-// Keep these models here so MainScreen and AddTransactionScreen can reuse them.
-enum class TransactionKind { INCOME, EXPENSE }
-
-data class SpendTransaction(
-    val id: Long,
-    val description: String,
-    val amount: Double,
-    val category: String,
-    val date: String, // yyyy-MM-dd
-    val kind: TransactionKind,
-    val notes: String = "",
-    val receiptUri: String? = null,
-    val voiceNotePath: String? = null
-)
-
 // Theme-aware colors. Light mode intentionally keeps the existing appearance.
 private data class TransactionsPalette(
     val background: Color,
@@ -131,6 +123,7 @@ private fun transactionsPalette(): TransactionsPalette {
 }
 
 private enum class TransactionFilter { ALL, INCOME, EXPENSES }
+private const val ALL_CATEGORIES = "__all_categories__"
 
 @Composable
 fun TransactionsScreen(
@@ -143,7 +136,7 @@ fun TransactionsScreen(
 ) {
     val colors = transactionsPalette()
     var filter by rememberSaveable { mutableStateOf(TransactionFilter.ALL.name) }
-    var category by rememberSaveable { mutableStateOf("All categories") }
+    var category by rememberSaveable { mutableStateOf(ALL_CATEGORIES) }
     var categoriesExpanded by rememberSaveable { mutableStateOf(false) }
     var pendingDelete by rememberSaveable { mutableStateOf<Long?>(null) }
 
@@ -172,7 +165,7 @@ fun TransactionsScreen(
                     playingTransactionId = null
                     Toast.makeText(
                         context,
-                        "Unable to play this voice note",
+                        context.getString(R.string.error_transaction_voice_play),
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -197,7 +190,7 @@ fun TransactionsScreen(
             // Category filtering only applies to the All tab.
             matchesType && (
                     filter != TransactionFilter.ALL.name ||
-                            category == "All categories" ||
+                            category == ALL_CATEGORIES ||
                             transaction.category == category
                     )
         }
@@ -212,26 +205,26 @@ fun TransactionsScreen(
         item {
             Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Transactions", fontSize = 32.sp, fontWeight = FontWeight.Normal, color = colors.foreground)
+                    Text(stringResource(R.string.transaction_title), fontSize = 32.sp, fontWeight = FontWeight.Normal, color = colors.foreground)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "${now.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.ENGLISH))} · Your money, recorded",
+                        stringResource(R.string.transaction_header_subtitle, now.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault()))),
                         fontSize = 14.sp,
                         color = colors.muted
                     )
                 }
-                Text("CAD", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.muted)
+                Text(stringResource(R.string.currency_cad), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = colors.muted)
             }
         }
 
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 MonthlySummaryCard(
-                    title = "Monthly Income", amount = monthlyIncome,
+                    title = stringResource(R.string.dashboard_monthly_income), amount = monthlyIncome,
                     positive = true, modifier = Modifier.weight(1f)
                 )
                 MonthlySummaryCard(
-                    title = "Monthly Expenses", amount = monthlyExpenses,
+                    title = stringResource(R.string.dashboard_monthly_expenses), amount = monthlyExpenses,
                     positive = false, modifier = Modifier.weight(1f)
                 )
             }
@@ -242,9 +235,9 @@ fun TransactionsScreen(
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 listOf(
-                    TransactionFilter.ALL to "All",
-                    TransactionFilter.INCOME to "Income",
-                    TransactionFilter.EXPENSES to "Expenses"
+                    TransactionFilter.ALL to stringResource(R.string.filter_all),
+                    TransactionFilter.INCOME to stringResource(R.string.type_income),
+                    TransactionFilter.EXPENSES to stringResource(R.string.filter_expenses)
                 ).forEach { (value, label) ->
                     val selected = filter == value.name
                     Box(
@@ -283,7 +276,7 @@ fun TransactionsScreen(
                         ) {
                             Icon(Icons.Outlined.FilterList, null, tint = colors.accent, modifier = Modifier.size(21.dp))
                             Spacer(Modifier.width(7.dp))
-                            Text(category, fontSize = 14.sp, color = colors.foreground, maxLines = 1)
+                            Text(if (category == ALL_CATEGORIES) stringResource(R.string.filter_all_categories) else localizedCategory(category), fontSize = 14.sp, color = colors.foreground, maxLines = 1)
                             Spacer(Modifier.width(8.dp))
                             Icon(Icons.Outlined.KeyboardArrowDown, null, tint = colors.foreground, modifier = Modifier.size(20.dp))
                         }
@@ -291,15 +284,15 @@ fun TransactionsScreen(
                             expanded = categoriesExpanded,
                             onDismissRequest = { categoriesExpanded = false }
                         ) {
-                            (listOf("All categories") + allCategories).forEach { option ->
-                                DropdownMenuItem(text = { Text(option) }, onClick = {
+                            (listOf(ALL_CATEGORIES) + allCategories).forEach { option ->
+                                DropdownMenuItem(text = { Text(if (option == ALL_CATEGORIES) stringResource(R.string.filter_all_categories) else localizedCategory(option)) }, onClick = {
                                     category = option
                                     categoriesExpanded = false
                                 })
                             }
                         }
                     }
-                    Text("Recent activity", color = colors.muted, fontSize = 13.sp)
+                    Text(stringResource(R.string.transaction_recent_activity), color = colors.muted, fontSize = 13.sp)
                 }
             }
         }
@@ -314,11 +307,11 @@ fun TransactionsScreen(
                 ) {
                     Icon(Icons.Outlined.ReceiptLong, null, tint = colors.accent, modifier = Modifier.size(40.dp))
                     Spacer(Modifier.height(12.dp))
-                    Text("No transactions to show", color = colors.foreground, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.transaction_empty), color = colors.foreground, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(6.dp))
-                    Text("Add a transaction or try another filter.", color = colors.muted, fontSize = 13.sp)
+                    Text(stringResource(R.string.transaction_empty_hint), color = colors.muted, fontSize = 13.sp)
                     Spacer(Modifier.height(12.dp))
-                    TextButton(onClick = onAddClick) { Text("+ Add transaction", color = colors.accent) }
+                    TextButton(onClick = onAddClick) { Text(stringResource(R.string.transaction_add_short), color = colors.accent) }
                 }
             } else {
                 Column(
@@ -370,16 +363,16 @@ fun TransactionsScreen(
     if (toDelete != null) {
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("Delete transaction?", color = colors.foreground) },
-            text = { Text("Remove \"${toDelete.description}\"? This cannot be undone.") },
+            title = { Text(stringResource(R.string.transaction_delete_prompt), color = colors.foreground) },
+            text = { Text(stringResource(R.string.transaction_delete_message, toDelete.description)) },
             confirmButton = {
                 TextButton(onClick = {
                     onDeleteClick?.invoke(toDelete)
                     pendingDelete = null
-                }) { Text("Delete", color = colors.error) }
+                }) { Text(stringResource(R.string.action_delete), color = colors.error) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("Cancel", color = colors.accent) }
+                TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.action_cancel), color = colors.accent) }
             },
             containerColor = colors.background
         )
@@ -452,7 +445,7 @@ private fun TransactionRow(
                 )
                 Spacer(Modifier.height(3.dp))
                 Text(
-                    "${transaction.category} · ${displayShortDate(transaction.date)}",
+                    "${localizedCategory(transaction.category)} · ${displayShortDate(transaction.date)}",
                     color = colors.muted,
                     fontSize = 14.sp,
                     maxLines = 1
@@ -474,7 +467,7 @@ private fun TransactionRow(
                 ) {
                     Icon(Icons.Outlined.Edit, null, tint = colors.accent, modifier = Modifier.size(17.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Edit", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.accent)
+                    Text(stringResource(R.string.action_edit), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.accent)
                 }
             }
             if (allowDelete) {
@@ -484,7 +477,7 @@ private fun TransactionRow(
                 ) {
                     Icon(Icons.Outlined.DeleteOutline, null, tint = colors.error, modifier = Modifier.size(17.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Delete", fontSize = 14.sp, color = colors.error)
+                    Text(stringResource(R.string.action_delete), fontSize = 14.sp, color = colors.error)
                 }
             }
         }
@@ -503,7 +496,7 @@ private fun TransactionRow(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    "View Receipt",
+                    stringResource(R.string.transaction_view_receipt),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.accent
@@ -527,7 +520,7 @@ private fun TransactionRow(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    if (isVoiceNotePlaying) "Stop Voice Note" else "Play Voice Note",
+                    if (isVoiceNotePlaying) stringResource(R.string.transaction_voice_stop) else stringResource(R.string.transaction_voice_play),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.accent
@@ -540,14 +533,14 @@ private fun TransactionRow(
 private fun money(amount: Double): String = "$" + String.format(Locale.CANADA, "%,.2f", amount)
 
 private fun displayGroupDate(value: String): String = runCatching {
-    LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMMM d", Locale.ENGLISH))
+    LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault()))
 }.getOrElse { value }
 
 private fun displayShortDate(value: String): String = runCatching {
-    LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMM d", Locale.ENGLISH))
+    LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
 }.getOrElse { value }
 
-private fun categoryIcon(category: String): ImageVector = when (category.lowercase(Locale.ENGLISH)) {
+private fun categoryIcon(category: String): ImageVector = when (category.lowercase(Locale.getDefault())) {
     "food", "groceries", "shopping" -> Icons.Outlined.ShoppingBasket
     "coffee" -> Icons.Outlined.Coffee
     "transportation", "transport" -> Icons.Outlined.DirectionsBus

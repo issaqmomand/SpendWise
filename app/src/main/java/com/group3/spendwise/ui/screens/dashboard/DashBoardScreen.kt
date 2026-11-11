@@ -1,5 +1,12 @@
 
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.dashboard
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
+
+import com.group3.spendwise.model.SpendTransaction
+import com.group3.spendwise.model.TransactionKind
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +22,8 @@ import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DirectionsBus
 import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.School
@@ -35,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.group3.spendwise.ui.theme.SpendWarning
+import com.group3.spendwise.ui.components.AppLanguageDialog
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -63,7 +73,7 @@ private fun dashboardDate(date: String): String {
         LocalDate.parse(date).format(
             DateTimeFormatter.ofPattern(
                 "MMM d",
-                Locale.ENGLISH
+                Locale.getDefault()
             )
         )
     }.getOrDefault(date)
@@ -71,7 +81,7 @@ private fun dashboardDate(date: String): String {
 
 // Category icons for recent transactions.
 private fun dashboardIcon(category: String): ImageVector {
-    return when (category.lowercase(Locale.ENGLISH)) {
+    return when (category.lowercase(Locale.getDefault())) {
         "food", "groceries", "shopping" ->
             Icons.Outlined.ShoppingBasket
 
@@ -109,6 +119,9 @@ fun DashboardScreen(
     }
 
     var showAccountMenu by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var showLanguageDialog by rememberSaveable {
         mutableStateOf(false)
     }
 
@@ -216,24 +229,20 @@ fun DashboardScreen(
     val incomeStatus = when {
         monthlyIncome == 0.0 &&
                 monthlyExpenses == 0.0 ->
-            "Add an income transaction to get started"
+            stringResource(R.string.dashboard_income_prompt)
 
         monthlyIncome == 0.0 ->
-            "No income recorded this month"
+            stringResource(R.string.dashboard_no_income)
 
         remainingIncome >= 0.0 ->
-            "${dashboardMoney(remainingIncome)} remaining"
+            stringResource(R.string.dashboard_income_remaining, dashboardMoney(remainingIncome))
 
         else ->
-            "${dashboardMoney(-remainingIncome)} over monthly income"
+            stringResource(R.string.dashboard_income_over, dashboardMoney(-remainingIncome))
     }
 
     val percentLabel = if (percentSpent != null) {
-        String.format(
-            Locale.CANADA,
-            "%.1f%% used",
-            percentSpent
-        )
+        stringResource(R.string.dashboard_percent_used, String.format(Locale.getDefault(), "%.1f%%", percentSpent))
     } else {
         "—"
     }
@@ -243,9 +252,9 @@ fun DashboardScreen(
         .get(Calendar.HOUR_OF_DAY)
 
     val greeting = when {
-        hour < 12 -> "Good Morning!"
-        hour < 18 -> "Good Afternoon!"
-        else -> "Good Evening!"
+        hour < 12 -> stringResource(R.string.dashboard_greeting_morning)
+        hour < 18 -> stringResource(R.string.dashboard_greeting_afternoon)
+        else -> stringResource(R.string.dashboard_greeting_evening)
     }
 
     val displayName = userName.ifBlank {
@@ -278,7 +287,7 @@ fun DashboardScreen(
                 )
 
                 Text(
-                    text = "Signed in as $displayName",
+                    text = stringResource(R.string.dashboard_signed_in, displayName),
                     style = MaterialTheme.typography.bodySmall,
                     color = mutedColor
                 )
@@ -292,7 +301,7 @@ fun DashboardScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "Account options",
+                        contentDescription = stringResource(R.string.account_options),
                         tint = titleColor
                     )
                 }
@@ -307,9 +316,9 @@ fun DashboardScreen(
                         text = {
                             Text(
                                 if (isDarkMode) {
-                                    "Light mode"
+                                    stringResource(R.string.theme_light)
                                 } else {
-                                    "Dark mode"
+                                    stringResource(R.string.theme_dark)
                                 }
                             )
                         },
@@ -341,8 +350,24 @@ fun DashboardScreen(
                     HorizontalDivider()
 
                     DropdownMenuItem(
+                        text = { Text(stringResource(R.string.language_label)) },
+                        onClick = {
+                            showAccountMenu = false
+                            showLanguageDialog = true
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Language, contentDescription = null)
+                        },
+                        trailingIcon = {
+                            Icon(Icons.Outlined.ChevronRight, contentDescription = null)
+                        }
+                    )
+
+                    HorizontalDivider()
+
+                    DropdownMenuItem(
                         text = {
-                            Text("Log out")
+                            Text(stringResource(R.string.action_logout))
                         },
                         onClick = {
                             showAccountMenu = false
@@ -358,6 +383,10 @@ fun DashboardScreen(
                     )
                 }
             }
+        }
+
+        if (showLanguageDialog) {
+            AppLanguageDialog(onDismiss = { showLanguageDialog = false })
         }
 
         // CURRENT BALANCE CARD
@@ -381,7 +410,7 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Current Balance",
+                        text = stringResource(R.string.dashboard_current_balance),
                         fontSize = 16.sp,
                         color = balanceSecondary,
                         modifier = Modifier.weight(1f)
@@ -400,9 +429,9 @@ fun DashboardScreen(
                                 Icons.Outlined.VisibilityOff
                             },
                             contentDescription = if (numbersVisible) {
-                                "Hide all Dashboard amounts"
+                                stringResource(R.string.dashboard_hide_amounts)
                             } else {
-                                "Show all Dashboard amounts"
+                                stringResource(R.string.dashboard_show_amounts)
                             },
                             tint = balanceSecondary,
                             modifier = Modifier.size(25.dp)
@@ -442,7 +471,7 @@ fun DashboardScreen(
                     Spacer(Modifier.width(8.dp))
 
                     Text(
-                        text = "Tracked by you. No bank connection.",
+                        text = stringResource(R.string.app_privacy_line),
                         color = balanceSecondary,
                         fontSize = 13.sp,
                         lineHeight = 18.sp
@@ -458,7 +487,7 @@ fun DashboardScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             DashboardStatCard(
-                label = "Monthly Income",
+                label = stringResource(R.string.dashboard_monthly_income),
                 value = if (numbersVisible) {
                     dashboardMoney(monthlyIncome)
                 } else {
@@ -469,7 +498,7 @@ fun DashboardScreen(
             )
 
             DashboardStatCard(
-                label = "Monthly Expenses",
+                label = stringResource(R.string.dashboard_monthly_expenses),
                 value = if (numbersVisible) {
                     dashboardMoney(monthlyExpenses)
                 } else {
@@ -496,7 +525,7 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Monthly Income Overview",
+                        text = stringResource(R.string.dashboard_income_overview),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = titleColor,
@@ -519,10 +548,9 @@ fun DashboardScreen(
 
                 Text(
                     text = if (numbersVisible) {
-                        "${dashboardMoney(monthlyExpenses)} spent of " +
-                                "${dashboardMoney(monthlyIncome)} income"
+                        stringResource(R.string.dashboard_spent_income, dashboardMoney(monthlyExpenses), dashboardMoney(monthlyIncome))
                     } else {
-                        "Monthly figures hidden"
+                        stringResource(R.string.dashboard_figures_hidden)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = mutedColor
@@ -558,7 +586,7 @@ fun DashboardScreen(
                     text = if (numbersVisible) {
                         incomeStatus
                     } else {
-                        "Remaining income hidden"
+                        stringResource(R.string.dashboard_remaining_hidden)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
@@ -589,7 +617,7 @@ fun DashboardScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Recent transactions",
+                        text = stringResource(R.string.dashboard_recent),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = titleColor,
@@ -599,13 +627,13 @@ fun DashboardScreen(
                     TextButton(
                         onClick = onViewTransactions
                     ) {
-                        Text("View all")
+                        Text(stringResource(R.string.dashboard_view_all))
                     }
                 }
 
                 if (recentTransactions.isEmpty()) {
                     Text(
-                        text = "No transactions yet. Add your first transaction to get started.",
+                        text = stringResource(R.string.dashboard_no_transactions),
                         style = MaterialTheme.typography.bodyMedium,
                         color = mutedColor,
                         modifier = Modifier.padding(
@@ -731,7 +759,7 @@ private fun DashboardTransactionRow(
 
             Text(
                 text = if (numbersVisible) {
-                    "${transaction.category} · " +
+                    "${localizedCategory(transaction.category)} · " +
                             dashboardDate(transaction.date)
                 } else {
                     transaction.category

@@ -1,0 +1,220 @@
+resource_key,en,fr
+nav_dashboard,Dashboard,Tableau de bord
+nav_transactions,Transactions,Transactions
+nav_add,Add,Ajouter
+nav_budget,Budget,Budget
+nav_insights,Insights,Analyses
+action_back,Back,Retour
+action_save,Save,Enregistrer
+action_cancel,Cancel,Annuler
+action_delete,Delete,Supprimer
+action_edit,Edit,Modifier
+action_remove,Remove,Retirer
+action_view,View,Voir
+action_stop,Stop,Arrêter
+currency_cad,CAD,CAD
+type_expense,Expense,Dépense
+type_income,Income,Revenu
+action_logout,Log out,Se déconnecter
+theme_light,Light mode,Mode clair
+theme_dark,Dark mode,Mode sombre
+account_options,Account options,Options du compte
+category_food,Food,Alimentation
+category_transportation,Transportation,Transport
+category_shopping,Shopping,Achats
+category_entertainment,Entertainment,Divertissement
+category_school,School,Études
+category_housing,Housing,Logement
+category_subscriptions,Subscriptions,Abonnements
+category_other,Other,Autre
+category_salary,Salary,Salaire
+category_gift,Gift,Cadeau
+category_refund,Refund,Remboursement
+app_tagline,A little habit. A clearer picture.,Une petite habitude. Une vision plus claire.
+app_privacy_line,Tracked by you. No bank connection.,Suivi par vous. Aucune connexion bancaire.
+password_show,Show password,Afficher le mot de passe
+password_hide,Hide password,Masquer le mot de passe
+login_welcome,Welcome back!,Bon retour !
+login_description,"From coffee runs to course books, keep your everyday spending in view.","Du café aux manuels scolaires, gardez un œil sur vos dépenses quotidiennes."
+auth_email,Email,Courriel
+auth_password,Password,Mot de passe
+auth_email_hint,you@example.com,vous@exemple.com
+login_password_hint,Enter your password,Saisissez votre mot de passe
+login_forgot,Forgot password?,Mot de passe oublié ?
+login_button,Log In,Se connecter
+login_new_user,New to SpendWise?,Vous découvrez SpendWise ?
+register_button,Create Account,Créer un compte
+register_title,Create your account,Créez votre compte
+register_description,"Make room for what matters. Start building better money habits, one expense at a time.","Faites de la place pour l’essentiel. Adoptez de meilleures habitudes financières, une dépense à la fois."
+register_full_name,Full name,Nom complet
+register_name_hint,Your name,Votre nom
+register_password_hint,Create a password,Créez un mot de passe
+register_confirm_password,Confirm password,Confirmer le mot de passe
+register_confirm_hint,Re-enter your password,Saisissez de nouveau votre mot de passe
+register_password_help,"Use at least 8 characters, including a number.","Utilisez au moins 8 caractères, dont un chiffre."
+register_existing,Already have an account?,Vous avez déjà un compte ?
+error_auth_empty,Enter your email and password.,Saisissez votre courriel et votre mot de passe.
+error_auth_email,Enter a valid email address.,Saisissez une adresse courriel valide.
+error_auth_reset_hint,"Enter your email above, then tap Forgot password.","Saisissez votre courriel ci-dessus, puis touchez Mot de passe oublié."
+auth_reset_sent,"If an account exists for that email, a reset link has been sent.","Si un compte existe pour ce courriel, un lien de réinitialisation a été envoyé."
+error_auth_name,Enter your full name.,Saisissez votre nom complet.
+error_auth_password_rule,Password must be at least 8 characters and include a number.,"Le mot de passe doit contenir au moins 8 caractères, dont un chiffre."
+error_auth_password_match,Passwords do not match.,Les mots de passe ne correspondent pas.
+error_auth_user_missing,No account found with that email.,Aucun compte trouvé pour ce courriel.
+error_auth_credentials,Incorrect email or password.,Courriel ou mot de passe incorrect.
+error_auth_collision,An account with that email already exists.,Un compte avec ce courriel existe déjà.
+error_auth_network,No internet connection. Please try again.,Aucune connexion Internet. Réessayez.
+error_auth_rate_limit,Too many attempts. Please wait a moment and try again.,"Trop de tentatives. Patientez un instant, puis réessayez."
+error_auth_generic,Something went wrong. Please try again.,Une erreur est survenue. Réessayez.
+dashboard_greeting_morning,Good Morning!,Bonjour !
+dashboard_greeting_afternoon,Good Afternoon!,Bon après-midi !
+dashboard_greeting_evening,Good Evening!,Bonsoir !
+dashboard_signed_in,Signed in as %1$s,Connecté sous %1$s
+dashboard_current_balance,Current Balance,Solde actuel
+dashboard_hide_amounts,Hide all Dashboard amounts,Masquer tous les montants du tableau de bord
+dashboard_show_amounts,Show all Dashboard amounts,Afficher tous les montants du tableau de bord
+dashboard_monthly_income,Monthly Income,Revenus mensuels
+dashboard_monthly_expenses,Monthly Expenses,Dépenses mensuelles
+dashboard_income_overview,Monthly Income Overview,Aperçu des revenus mensuels
+dashboard_income_prompt,Add an income transaction to get started,Ajoutez un revenu pour commencer
+dashboard_no_income,No income recorded this month,Aucun revenu enregistré ce mois-ci
+dashboard_income_remaining,%1$s remaining,%1$s restants
+dashboard_income_over,%1$s over monthly income,Dépassement des revenus mensuels de %1$s
+dashboard_percent_used,%1$s used,%1$s utilisés
+dashboard_spent_income,%1$s spent of %2$s income,%1$s dépensés sur %2$s de revenus
+dashboard_figures_hidden,Monthly figures hidden,Montants mensuels masqués
+dashboard_remaining_hidden,Remaining income hidden,Revenu restant masqué
+dashboard_recent,Recent transactions,Transactions récentes
+dashboard_view_all,View all,Tout voir
+dashboard_no_transactions,No transactions yet. Add your first transaction to get started.,Aucune transaction pour le moment. Ajoutez votre première transaction.
+transaction_title,Transactions,Transactions
+transaction_header_subtitle,"%1$s · Your money, recorded","%1$s · Vos finances, enregistrées"
+filter_all,All,Tout
+filter_expenses,Expenses,Dépenses
+filter_all_categories,All categories,Toutes les catégories
+transaction_recent_activity,Recent activity,Activité récente
+transaction_empty,No transactions to show,Aucune transaction à afficher
+transaction_empty_hint,Add a transaction or try another filter.,Ajoutez une transaction ou essayez un autre filtre.
+transaction_add_short,+ Add transaction,+ Ajouter une transaction
+transaction_delete_prompt,Delete transaction?,Supprimer la transaction ?
+transaction_delete_message,"Remove ""%1$s""? This cannot be undone.",Supprimer « %1$s » ? Cette action est irréversible.
+transaction_view_receipt,View Receipt,Voir le reçu
+transaction_voice_stop,Stop Voice Note,Arrêter la note vocale
+transaction_voice_play,Play Voice Note,Lire la note vocale
+error_transaction_voice_play,Unable to play this voice note,Impossible de lire cette note vocale
+transaction_deleted,Transaction deleted,Transaction supprimée
+transaction_not_found,Transaction not found,Transaction introuvable
+transaction_delete_failed,Unable to delete transaction,Impossible de supprimer la transaction
+transaction_receipt_open_failed,Unable to open receipt,Impossible d’ouvrir le reçu
+transaction_updated,Transaction updated successfully,Transaction mise à jour avec succès
+transaction_update_failed,Unable to update transaction,Impossible de mettre à jour la transaction
+transaction_loading,Loading transaction...,Chargement de la transaction…
+transaction_back_to_list,Back to Transactions,Retour aux transactions
+transaction_auth_required,Please sign in to save transactions,Connectez-vous pour enregistrer des transactions
+transaction_saved,Transaction saved successfully,Transaction enregistrée avec succès
+transaction_save_failed,Unable to save transaction,Impossible d’enregistrer la transaction
+form_add_title,Add Transaction,Ajouter une transaction
+form_edit_title,Edit Transaction,Modifier la transaction
+form_edit_subtitle,Make your record more accurate.,Mettez à jour les détails de votre transaction.
+form_add_subtitle,A little habit. A clearer picture.,Une petite habitude. Une vision plus claire.
+form_receipt_heading,Receipt Attachment · optional,Reçu joint · facultatif
+form_add_receipt,Add Receipt Photo,Ajouter une photo du reçu
+form_change_receipt,Change Receipt Photo,Changer la photo du reçu
+form_receipt_attached,Receipt attached,Reçu joint
+form_amount_label,Amount * · CAD,Montant * · CAD
+form_description_required,Description *,Description *
+form_description_hint,What was it for?,À quoi correspond cette dépense ?
+form_category_required,Category *,Catégorie *
+form_category_select,Select category,Choisir une catégorie
+form_date_required,Date *,Date *
+form_expense_categories,"Food · Transportation · Shopping · Entertainment
+School · Housing · Subscriptions · Other","Alimentation · Transport · Achats · Divertissement
+Études · Logement · Abonnements · Autre"
+form_income_categories,Salary · Gift · Refund · Other,Salaire · Cadeau · Remboursement · Autre
+form_required_error,"Enter an amount, description and category.","Saisissez un montant, une description et une catégorie."
+form_save_changes,Save Changes,Enregistrer les modifications
+form_save_transaction,Save Transaction,Enregistrer la transaction
+form_delete_transaction,Delete Transaction,Supprimer la transaction
+form_receipt_question,How would you like to attach a receipt?,Comment souhaitez-vous joindre un reçu ?
+form_receipt_take,Take Photo,Prendre une photo
+form_receipt_gallery,Choose from Gallery,Choisir dans la galerie
+form_delete_confirm,This transaction will be permanently removed.,Cette transaction sera supprimée définitivement.
+form_note_hint,Add a note...,Ajouter une note…
+form_receipt_open_error,Unable to open receipt.,Impossible d’ouvrir le reçu.
+form_camera_error,Unable to open camera.,Impossible d’ouvrir l’appareil photo.
+details_title,Transaction Details,Détails de la transaction
+details_info,Transaction Information,Informations sur la transaction
+details_description,Description,Description
+details_category,Category,Catégorie
+details_date,Date,Date
+details_type,Type,Type
+details_notes,Notes,Notes
+details_no_notes,No notes added.,Aucune note ajoutée.
+details_receipt,Receipt Attachment,Reçu joint
+details_no_receipt,No receipt attached.,Aucun reçu joint.
+details_voice,Voice Note,Note vocale
+details_no_voice,No voice note attached.,Aucune note vocale jointe.
+details_missing_recording,Recording file not found.,Fichier audio introuvable.
+details_voice_error,Unable to play voice note.,Impossible de lire la note vocale.
+details_play_recording,Play Recording,Lire l’enregistrement
+voice_optional,Voice Note · optional,Note vocale · facultatif
+voice_recording,Recording in progress...,Enregistrement en cours…
+voice_start_error,Unable to start recording.,Impossible de démarrer l’enregistrement.
+voice_permission_error,Microphone permission is required.,L’autorisation d’utiliser le microphone est nécessaire.
+voice_recorded,Voice note recorded.,Note vocale enregistrée.
+voice_short_error,Recording was too short or could not be saved.,Enregistrement trop court ou impossible à enregistrer.
+voice_stop_recording, Stop Recording, Arrêter l’enregistrement
+voice_mic_active,Microphone is active,Microphone actif
+voice_add,  Add Voice Note,  Ajouter une note vocale
+voice_added,Voice note added,Note vocale ajoutée
+voice_stop, Stop, Arrêter
+voice_play, Play Recording, Lire l’enregistrement
+voice_redo, Redo, Recommencer
+voice_removed,Voice note removed.,Note vocale retirée.
+voice_remove, Remove, Retirer
+budget_title,Monthly Budget,Budget mensuel
+budget_tagline,Make room for what matters.,Faites de la place pour l’essentiel.
+budget_choose_month,Choose month,Choisir le mois
+budget_not_set,Not set,Non défini
+budget_total_spent,Total Spent,Total dépensé
+budget_remaining,Remaining,Restant
+budget_used,Monthly budget used,Budget mensuel utilisé
+budget_set_prompt,Set your monthly budget below to begin tracking.,Définissez votre budget mensuel ci-dessous pour commencer le suivi.
+budget_category_spending,Category spending,Dépenses par catégorie
+budget_no_expenses,No expenses recorded for this month.,Aucune dépense enregistrée ce mois-ci.
+budget_edit,Set/Edit Monthly Budget,Définir ou modifier le budget mensuel
+budget_alert_90,Alert me at 90%,M’avertir à 90 %
+budget_exceeded_message,Budget Exceeded! You've exceeded your monthly spending limit.,Budget dépassé ! Vous avez dépassé votre limite de dépenses mensuelles.
+budget_exceeded_amounts,%1$s / %2$s budget · %3$s overspent,%1$s / budget de %2$s · dépassement de %3$s
+budget_warning_used,You've used %1$s%% of this month's budget.,Vous avez utilisé %1$s %% du budget de ce mois-ci.
+budget_monthly_income,Monthly income: %1$s,Revenus mensuels : %1$s
+budget_amount_cad,Monthly amount · CAD,Montant mensuel · CAD
+budget_sign_in_error,Please sign in to save your budget.,Connectez-vous pour enregistrer votre budget.
+budget_positive_error,Enter a budget greater than zero.,Saisissez un budget supérieur à zéro.
+budget_income_required,Add income for this month before setting a budget.,Ajoutez des revenus pour ce mois avant de définir un budget.
+budget_income_max_error,Budget cannot exceed monthly income (%1$s).,Le budget ne peut pas dépasser les revenus mensuels (%1$s).
+budget_prev_month,Previous month,Mois précédent
+budget_next_month,Next month,Mois suivant
+budget_used_short,used,utilisé
+insights_title,Spending Insights,Analyse des dépenses
+insights_tagline,Small insights. Smarter habits.,De petits constats pour de meilleures habitudes.
+insights_spent_month,%1$s spent this month,%1$s dépensés ce mois-ci
+insights_breakdown,A breakdown of your %1$s expenses,Répartition de vos dépenses de %1$s
+insights_no_data,No expense data,Aucune donnée sur les dépenses
+insights_income_expenses,Income vs. expenses,Revenus et dépenses
+insights_chart_context,%1$s · CAD · scale starts at $0,%1$s · CAD · échelle à partir de 0 $
+insights_month_glance,YOUR MONTH AT A GLANCE,VOTRE MOIS EN BREF
+insights_no_summary,No expense insights yet for this month.,Aucune analyse des dépenses pour ce mois-ci.
+insights_top_category,%1$s is your highest spending category this month.,%1$s est votre principale catégorie de dépenses ce mois-ci.
+insights_total_spent,total spent,total dépensé
+notifications_channel_name,Budget Alerts,Alertes budgétaires
+notifications_channel_description,Notifications when spending approaches or exceeds your budget,Notifications lorsque les dépenses approchent ou dépassent votre budget
+notifications_exceeded_title,Monthly Budget Exceeded,Budget mensuel dépassé
+notifications_exceeded_body,You've spent %1$s of your %2$s budget for %3$s.,Vous avez dépensé %1$s sur votre budget de %2$s pour %3$s.
+notifications_warning_title,Budget Warning,Alerte budgétaire
+notifications_warning_body,You've used at least 90%% of your %1$s budget for %2$s. Spent so far: %3$s.,Vous avez utilisé au moins 90 %% de votre budget de %1$s pour %2$s. Dépenses à ce jour : %3$s.
+language_label,Language,Langue
+language_system,System default,Langue du système
+language_english,English,Anglais
+language_french,French,Français
+insights_percentage,%1$s%%,%1$s %%
