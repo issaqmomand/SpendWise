@@ -1,4 +1,8 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.auth
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,25 +38,19 @@ import com.group3.spendwise.ui.components.AuthHeader
 import com.group3.spendwise.ui.components.AuthMessages
 import com.group3.spendwise.ui.components.PasswordField
 import com.group3.spendwise.ui.components.PrimaryButton
-import com.group3.spendwise.ui.theme.SpendBackground
-import com.group3.spendwise.ui.theme.SpendGreen
-import com.group3.spendwise.ui.theme.SpendMuted
-import com.group3.spendwise.ui.theme.SpendNavy
 
 @Composable
-fun RegisterScreen(
+fun LoginScreen(
     authViewModel: AuthViewModel,
-    onGoToLogin: () -> Unit
+    onGoToRegister: () -> Unit
 ) {
-    var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SpendBackground)
+            .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
@@ -60,67 +58,51 @@ fun RegisterScreen(
     ) {
         AuthHeader()
 
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(40.dp))
 
         Text(
-            text = "Create your account",
+            text = stringResource(R.string.login_welcome),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = SpendNavy
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Make room for what matters. Start building better money habits, one expense at a time.",
+            text = stringResource(R.string.login_description),
             style = MaterialTheme.typography.bodyMedium,
-            color = SpendMuted
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(Modifier.height(24.dp))
 
         AppTextField(
-            label = "Full name",
-            value = fullName,
-            onValueChange = { fullName = it },
-            placeholder = "Your name"
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        AppTextField(
-            label = "Email",
+            label = stringResource(R.string.auth_email),
             value = email,
             onValueChange = { email = it },
-            placeholder = "you@example.com",
+            placeholder = stringResource(R.string.auth_email_hint),
             keyboardType = KeyboardType.Email
         )
 
         Spacer(Modifier.height(12.dp))
 
         PasswordField(
-            label = "Password",
+            label = stringResource(R.string.auth_password),
             value = password,
             onValueChange = { password = it },
-            placeholder = "Create a password"
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        PasswordField(
-            label = "Confirm password",
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            placeholder = "Re-enter your password",
+            placeholder = stringResource(R.string.login_password_hint),
             imeAction = ImeAction.Done
         )
 
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "Use at least 8 characters, including a number.",
-            style = MaterialTheme.typography.bodySmall,
-            color = SpendMuted
-        )
-
-        Spacer(Modifier.height(20.dp))
+        TextButton(
+            onClick = { authViewModel.sendPasswordReset(email) },
+            modifier = Modifier.align(Alignment.End)
+        ) {
+            Text(
+                text = stringResource(R.string.login_forgot),
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
 
         AuthMessages(
             errorMessage = authViewModel.errorMessage,
@@ -128,10 +110,8 @@ fun RegisterScreen(
         )
 
         PrimaryButton(
-            text = "Create Account",
-            onClick = {
-                authViewModel.register(fullName, email, password, confirmPassword)
-            },
+            text = stringResource(R.string.login_button),
+            onClick = { authViewModel.login(email, password) },
             isLoading = authViewModel.isLoading
         )
 
@@ -143,14 +123,14 @@ fun RegisterScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Already have an account?",
+                text = stringResource(R.string.login_new_user),
                 style = MaterialTheme.typography.bodyMedium,
-                color = SpendMuted
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            TextButton(onClick = onGoToLogin) {
+            TextButton(onClick = onGoToRegister) {
                 Text(
-                    text = "Log In",
-                    color = SpendGreen,
+                    text = stringResource(R.string.register_button),
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -159,9 +139,9 @@ fun RegisterScreen(
         Spacer(Modifier.height(32.dp))
 
         Text(
-            text = "Tracked by you. No bank connection.",
+            text = stringResource(R.string.app_privacy_line),
             style = MaterialTheme.typography.bodySmall,
-            color = SpendMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )

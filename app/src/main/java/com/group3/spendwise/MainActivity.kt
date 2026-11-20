@@ -1,27 +1,24 @@
 package com.group3.spendwise
 
+import android.content.Context
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.group3.spendwise.auth.AuthViewModel
-import com.group3.spendwise.ui.screens.LoginScreen
-import com.group3.spendwise.ui.screens.MainScreen
-import com.group3.spendwise.ui.screens.RegisterScreen
+import androidx.core.view.WindowCompat
 import com.group3.spendwise.ui.theme.SpendWiseTheme
+import com.group3.spendwise.ui.SpendWiseApp
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Dark status bar icons, because our background is light
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
                 android.graphics.Color.TRANSPARENT,
@@ -29,49 +26,32 @@ class MainActivity : ComponentActivity() {
             )
         )
 
+        // Theme preference is device-local and survives app restarts.
+        val settings = getSharedPreferences("spendwise_settings", Context.MODE_PRIVATE)
+
         setContent {
-            SpendWiseTheme {
-                SpendWiseApp()
+            var darkMode by rememberSaveable {
+                mutableStateOf(settings.getBoolean("dark_mode", false))
+            }
+
+            // Match status/navigation bar icons to the selected app theme.
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !darkMode
+                    isAppearanceLightNavigationBars = !darkMode
+                }
+            }
+
+            SpendWiseTheme(darkTheme = darkMode) {
+                SpendWiseApp(
+                    isDarkMode = darkMode,
+                    onDarkModeChange = { enabled ->
+                        darkMode = enabled
+                        settings.edit().putBoolean("dark_mode", enabled).apply()
+                    }
+                )
             }
         }
     }
 }
 
-/**
- * Decides which screen to show:
- *  - signed in            -> MainScreen (dashboard + bottom navigation)
- *  - not signed in        -> LoginScreen, or RegisterScreen if the user tapped "Create Account"
- *
- * Firebase remembers the signed-in user, so reopening the app skips the login screen.
- */
-@Composable
-fun SpendWiseApp(authViewModel: AuthViewModel = viewModel()) {
-    var showRegister by rememberSaveable { mutableStateOf(false) }
-
-    when {
-        authViewModel.isLoggedIn -> MainScreen(
-            userName = authViewModel.userName,
-            userEmail = authViewModel.userEmail,
-            onLogout = {
-                authViewModel.logout()
-                showRegister = false
-            }
-        )
-
-        showRegister -> RegisterScreen(
-            authViewModel = authViewModel,
-            onGoToLogin = {
-                authViewModel.clearMessages()
-                showRegister = false
-            }
-        )
-
-        else -> LoginScreen(
-            authViewModel = authViewModel,
-            onGoToRegister = {
-                authViewModel.clearMessages()
-                showRegister = true
-            }
-        )
-    }
-}

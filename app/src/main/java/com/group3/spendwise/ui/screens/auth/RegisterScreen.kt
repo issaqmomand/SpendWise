@@ -1,4 +1,8 @@
-package com.group3.spendwise.ui.screens
+package com.group3.spendwise.ui.screens.auth
+
+import com.group3.spendwise.R
+import androidx.compose.ui.res.stringResource
+import com.group3.spendwise.ui.components.localizedCategory
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,23 +38,21 @@ import com.group3.spendwise.ui.components.AuthHeader
 import com.group3.spendwise.ui.components.AuthMessages
 import com.group3.spendwise.ui.components.PasswordField
 import com.group3.spendwise.ui.components.PrimaryButton
-import com.group3.spendwise.ui.theme.SpendBackground
-import com.group3.spendwise.ui.theme.SpendGreen
-import com.group3.spendwise.ui.theme.SpendMuted
-import com.group3.spendwise.ui.theme.SpendNavy
 
 @Composable
-fun LoginScreen(
+fun RegisterScreen(
     authViewModel: AuthViewModel,
-    onGoToRegister: () -> Unit
+    onGoToLogin: () -> Unit
 ) {
+    var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(SpendBackground)
+            .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
             .imePadding()
             .verticalScroll(rememberScrollState())
@@ -58,51 +60,67 @@ fun LoginScreen(
     ) {
         AuthHeader()
 
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(32.dp))
 
         Text(
-            text = "Welcome back!",
+            text = stringResource(R.string.register_title),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = SpendNavy
+            color = MaterialTheme.colorScheme.onBackground
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "From coffee runs to course books, keep your everyday spending in view.",
+            text = stringResource(R.string.register_description),
             style = MaterialTheme.typography.bodyMedium,
-            color = SpendMuted
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(Modifier.height(24.dp))
 
         AppTextField(
-            label = "Email",
+            label = stringResource(R.string.register_full_name),
+            value = fullName,
+            onValueChange = { fullName = it },
+            placeholder = stringResource(R.string.register_name_hint)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        AppTextField(
+            label = stringResource(R.string.auth_email),
             value = email,
             onValueChange = { email = it },
-            placeholder = "you@example.com",
+            placeholder = stringResource(R.string.auth_email_hint),
             keyboardType = KeyboardType.Email
         )
 
         Spacer(Modifier.height(12.dp))
 
         PasswordField(
-            label = "Password",
+            label = stringResource(R.string.auth_password),
             value = password,
             onValueChange = { password = it },
-            placeholder = "Enter your password",
+            placeholder = stringResource(R.string.register_password_hint)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        PasswordField(
+            label = stringResource(R.string.register_confirm_password),
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it },
+            placeholder = stringResource(R.string.register_confirm_hint),
             imeAction = ImeAction.Done
         )
 
-        TextButton(
-            onClick = { authViewModel.sendPasswordReset(email) },
-            modifier = Modifier.align(Alignment.End)
-        ) {
-            Text(
-                text = "Forgot password?",
-                color = SpendGreen,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = stringResource(R.string.register_password_help),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(20.dp))
 
         AuthMessages(
             errorMessage = authViewModel.errorMessage,
@@ -110,8 +128,10 @@ fun LoginScreen(
         )
 
         PrimaryButton(
-            text = "Log In",
-            onClick = { authViewModel.login(email, password) },
+            text = stringResource(R.string.register_button),
+            onClick = {
+                authViewModel.register(fullName, email, password, confirmPassword)
+            },
             isLoading = authViewModel.isLoading
         )
 
@@ -123,14 +143,14 @@ fun LoginScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "New to SpendWise?",
+                text = stringResource(R.string.register_existing),
                 style = MaterialTheme.typography.bodyMedium,
-                color = SpendMuted
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            TextButton(onClick = onGoToRegister) {
+            TextButton(onClick = onGoToLogin) {
                 Text(
-                    text = "Create Account",
-                    color = SpendGreen,
+                    text = stringResource(R.string.login_button),
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -139,9 +159,9 @@ fun LoginScreen(
         Spacer(Modifier.height(32.dp))
 
         Text(
-            text = "Tracked by you. No bank connection.",
+            text = stringResource(R.string.app_privacy_line),
             style = MaterialTheme.typography.bodySmall,
-            color = SpendMuted,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
