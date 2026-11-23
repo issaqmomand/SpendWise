@@ -45,32 +45,44 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.group3.spendwise.VoiceNoteRecorder
 
+// Colours used only by the voice note controls.
 private val voiceGreen = Color(0xFF477A62)
 private val voiceNavy = Color(0xFF203846)
 private val voiceMuted = Color(0xFF7A8880)
 private val voiceRed = Color(0xFFC7554E)
 private val voiceSage = Color(0xFFEAF1E9)
 
+/**
+ * Voice note controls used on the Add/Edit Transaction form. It has three states:
+ * recording (shows a Stop button), no voice note yet (shows "Add voice note"),
+ * or voice note attached (Play/Stop, Redo and Remove buttons).
+ * @param voiceNotePath Path of the current voice note, or null if none is attached.
+ * @param onVoiceNotePathChange Called with the new file path after recording, or null when removed.
+ */
 @Composable
 fun VoiceNoteSection(
     voiceNotePath: String?,
     onVoiceNotePathChange: (String?) -> Unit
 ) {
     val context = LocalContext.current
+    // One recorder per screen; remembered so it survives recompositions.
     val audioRecorder = remember(context) {
         VoiceNoteRecorder(context)
     }
 
+    // UI state for the buttons and the status text under them.
     var isRecording by remember { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
 
+    // Stop any recording/playback and free the mic when this section leaves the screen.
     DisposableEffect(audioRecorder) {
         onDispose {
             audioRecorder.release()
         }
     }
 
+    // Starts a new recording and updates the status message. Assumes the mic permission was already granted.
     fun beginRecording() {
         try {
             audioRecorder.stopPlayback()
@@ -85,6 +97,7 @@ fun VoiceNoteSection(
         }
     }
 
+    // Asks for microphone permission; starts recording right away if the user allows it.
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -107,10 +120,12 @@ fun VoiceNoteSection(
 
         Spacer(Modifier.height(6.dp))
 
+        // Show different controls depending on the current state.
         when {
             isRecording -> {
                 Button(
                     onClick = {
+                        // Stop and keep the recording; a null path means it was too short or failed.
                         val savedPath = audioRecorder.stopRecording()
                         isRecording = false
 
@@ -149,6 +164,7 @@ fun VoiceNoteSection(
                 )
             }
 
+            // No voice note yet: tapping the row checks mic permission, then starts recording.
             voiceNotePath.isNullOrBlank() -> {
                 Row(
                     modifier = Modifier
@@ -191,6 +207,7 @@ fun VoiceNoteSection(
                 }
             }
 
+            // A voice note is attached: show Play/Stop, Redo and Remove.
             else -> {
                 Text(
                     text = stringResource(R.string.voice_added),
@@ -208,6 +225,7 @@ fun VoiceNoteSection(
                 ) {
                     Button(
                         onClick = {
+                            // Toggle playback; the callback resets the button when the clip finishes.
                             if (isPlaying) {
                                 audioRecorder.stopPlayback()
                                 isPlaying = false
@@ -240,6 +258,7 @@ fun VoiceNoteSection(
                         )
                     }
 
+                    // Redo: record a new voice note to replace the current one.
                     TextButton(
                         onClick = {
                             audioRecorder.stopPlayback()
@@ -271,6 +290,7 @@ fun VoiceNoteSection(
                         )
                     }
 
+                    // Remove: detach the voice note from the transaction.
                     TextButton(
                         onClick = {
                             audioRecorder.stopPlayback()
@@ -293,6 +313,7 @@ fun VoiceNoteSection(
             }
         }
 
+        // Status/error message under the controls (red while recording).
         if (message.isNotBlank()) {
             Spacer(Modifier.height(6.dp))
 

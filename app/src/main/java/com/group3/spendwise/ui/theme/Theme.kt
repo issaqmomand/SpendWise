@@ -67,6 +67,7 @@ private val LightColors = lightColorScheme(
     onErrorContainer = Color(0xFF410002)
 )
 
+// Dark mode palette: same roles as LightColors, with lighter text on dark green/navy surfaces.
 private val DarkColors = darkColorScheme(
     primary = Color(0xFFADD3BD),
     onPrimary = Color(0xFF183229),
@@ -118,6 +119,12 @@ private val SpendShapes = Shapes(
     extraSmall = RoundedCornerShape(16.dp)
 )
 
+/**
+ * Root theme for the whole app. Wrap all UI in this so every Material component
+ * uses the SpendWise colours and shapes.
+ * @param darkTheme true to use the dark colour scheme.
+ * @param content The UI to display inside the theme.
+ */
 @Composable
 fun SpendWiseTheme(
     darkTheme: Boolean = false,

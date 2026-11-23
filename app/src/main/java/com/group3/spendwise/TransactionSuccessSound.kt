@@ -7,6 +7,7 @@ import android.media.SoundPool
 // Plays a short confirmation chime when a transaction is saved.
 class TransactionSuccessSound(context: Context) {
 
+    // SoundPool is used instead of MediaPlayer because it is better suited for short, low-latency sound effects.
     private val soundPool = SoundPool.Builder()
         .setMaxStreams(1)
         .setAudioAttributes(
@@ -17,9 +18,13 @@ class TransactionSuccessSound(context: Context) {
         )
         .build()
 
+    // ID of the loaded sound inside the SoundPool.
     private var soundId = 0
+    // True once the sound file has finished loading.
     private var soundLoaded = false
+    // Set when play() is called before loading finishes, so the sound plays as soon as it is ready.
     private var pendingPlay = false
+    // Prevents using the SoundPool after it has been released.
     private var released = false
 
     init {
@@ -46,6 +51,7 @@ class TransactionSuccessSound(context: Context) {
         soundPool.play(soundId, 0.65f, 0.65f, 1, 0, 1.0f)
     }
 
+    /** Frees the SoundPool. Call this when the owning screen is disposed. */
     fun release() {
         if (released) return
         released = true

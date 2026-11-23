@@ -39,11 +39,17 @@ import com.group3.spendwise.ui.components.AuthMessages
 import com.group3.spendwise.ui.components.PasswordField
 import com.group3.spendwise.ui.components.PrimaryButton
 
+/**
+ * Account creation screen: full name, email, password and confirm password.
+ * Validation and Firebase calls are done in [AuthViewModel.register].
+ * @param onGoToLogin Called when the user taps the "already have an account" link.
+ */
 @Composable
 fun RegisterScreen(
     authViewModel: AuthViewModel,
     onGoToLogin: () -> Unit
 ) {
+    // Form fields, saved across rotation.
     var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -54,6 +60,7 @@ fun RegisterScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
+            // imePadding + verticalScroll keep the fields reachable when the keyboard is open.
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 16.dp)
@@ -114,6 +121,7 @@ fun RegisterScreen(
         )
 
         Spacer(Modifier.height(8.dp))
+        // Reminds the user of the password rule (8+ characters with a number).
         Text(
             text = stringResource(R.string.register_password_help),
             style = MaterialTheme.typography.bodySmall,

@@ -79,9 +79,11 @@ private data class DetailsPalette(
     val buttonText: Color
 )
 
+/** Picks the details screen colours: fixed light colours in light mode, theme colours in dark mode. */
 @Composable
 private fun detailsPalette(): DetailsPalette {
     val scheme = MaterialTheme.colorScheme
+    // A dark background has low luminance (brightness), so this tells us if dark mode is on.
     val isDark = scheme.background.luminance() < 0.5f
 
     return if (isDark) {
@@ -115,6 +117,14 @@ private fun detailsPalette(): DetailsPalette {
     }
 }
 
+/**
+ * Read-only view of one transaction: amount summary, info, notes, receipt link and voice note player.
+ * @param transaction The transaction to display.
+ * @param onBack Returns to the Transactions list.
+ * @param onEdit Opens this transaction in the edit form.
+ * @param onDelete Deletes this transaction.
+ * @param onViewReceipt Opens the receipt photo in an image viewer.
+ */
 @Composable
 fun TransactionDetailsScreen(
     transaction: SpendTransaction,
@@ -125,6 +135,7 @@ fun TransactionDetailsScreen(
 ) {
     val context = LocalContext.current
     val colors = detailsPalette()
+    // A new player is created for each transaction (keyed on transaction.id).
     val audioPlayer = remember(context, transaction.id) {
         VoiceNoteRecorder(context)
     }
@@ -136,9 +147,11 @@ fun TransactionDetailsScreen(
         onDispose { audioPlayer.release() }
     }
 
+    // Format the amount with a sign: "-$" for expenses and "+$" for income.
     val isExpense = transaction.kind == TransactionKind.EXPENSE
     val formattedAmount = String.format(Locale.CANADA, "%,.2f", transaction.amount)
     val amountText = if (isExpense) "-$$formattedAmount" else "+$$formattedAmount"
+    // Show the date as e.g. "November 23, 2026"; fall back to the raw text if it can't be parsed.
     val formattedDate = remember(transaction.date, Locale.getDefault()) {
         runCatching {
             LocalDate.parse(transaction.date).format(
@@ -146,6 +159,7 @@ fun TransactionDetailsScreen(
             )
         }.getOrElse { transaction.date }
     }
+    // Treat a blank path the same as no voice note.
     val voicePath = transaction.voiceNotePath?.takeIf { it.isNotBlank() }
     val hasVoiceNote = voicePath != null
 
@@ -157,6 +171,7 @@ fun TransactionDetailsScreen(
             .padding(horizontal = 22.dp)
             .padding(top = 12.dp, bottom = 25.dp)
     ) {
+        // Top bar: back arrow and screen title.
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
@@ -226,6 +241,7 @@ fun TransactionDetailsScreen(
 
         Spacer(Modifier.height(9.dp))
 
+        // General information card.
         DetailsCard {
             Text(
                 stringResource(R.string.details_info),
@@ -279,6 +295,7 @@ fun TransactionDetailsScreen(
                 )
             }
             Spacer(Modifier.height(8.dp))
+            // Show a "View receipt" link only when a photo is attached.
             if (transaction.receiptUri.isNullOrBlank()) {
                 Text(stringResource(R.string.details_no_receipt), color = colors.muted, fontSize = 12.sp)
             } else {
@@ -320,6 +337,7 @@ fun TransactionDetailsScreen(
                     color = colors.muted
                 )
             } else {
+                // Play/Stop toggle for the voice note.
                 OutlinedButton(
                     onClick = {
                         if (isPlaying) {
@@ -328,6 +346,7 @@ fun TransactionDetailsScreen(
                             playbackError = ""
                         } else {
                             try {
+                                // The file could have been deleted from storage, so check before playing.
                                 val file = File(voicePath!!)
                                 if (!file.exists()) {
                                     playbackError = context.getString(R.string.details_missing_recording)
@@ -371,6 +390,7 @@ fun TransactionDetailsScreen(
 
         Spacer(Modifier.height(11.dp))
 
+        // Edit and Delete buttons. Audio is stopped first so it doesn't keep playing after leaving.
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(9.dp)
@@ -409,6 +429,7 @@ fun TransactionDetailsScreen(
     }
 }
 
+/** White rounded card used for each section on this screen. */
 @Composable
 private fun DetailsCard(content: @Composable ColumnScope.() -> Unit) {
     val colors = detailsPalette()
@@ -421,6 +442,7 @@ private fun DetailsCard(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
+/** One "label: value" row inside the info card. */
 @Composable
 private fun InfoRow(label: String, value: String) {
     val colors = detailsPalette()

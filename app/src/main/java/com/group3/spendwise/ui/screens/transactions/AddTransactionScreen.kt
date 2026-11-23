@@ -80,6 +80,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+// Form colours. Light mode (white surface) uses the original fixed colours; dark mode uses the theme colours.
 private val formBackground: Color
     @Composable get() = if (MaterialTheme.colorScheme.surface == Color.White)
         Color(0xFFF6F7F4) else MaterialTheme.colorScheme.background
@@ -102,12 +103,21 @@ private val formRed: Color
     @Composable get() = if (MaterialTheme.colorScheme.surface == Color.White)
         Color(0xFFC7554E) else MaterialTheme.colorScheme.error
 
+// Category lists shown in the dropdown, depending on income vs expense.
 private val expenseCategories = TransactionCategories.expenses
 private val incomeCategories = TransactionCategories.income
 
 private val formSurface: Color
     @Composable get() = MaterialTheme.colorScheme.surface
 
+/**
+ * Form for adding a new transaction or editing an existing one. Includes amount, description,
+ * category, date, notes, a receipt photo (camera or gallery) and an optional voice note.
+ * @param onBack Leaves the form without saving.
+ * @param onSave Called with the filled-in transaction. Saving to Room is done by the caller (MainScreen).
+ * @param transactionToEdit Existing transaction to edit, or null to add a new one.
+ * @param onDelete Deletes the transaction being edited; the button is hidden when null.
+ */
 @Composable
 fun AddTransactionScreen(
     onBack: () -> Unit,
@@ -118,6 +128,8 @@ fun AddTransactionScreen(
     val context = LocalContext.current
     val editing = transactionToEdit != null
 
+    // Form fields. Keyed on the transaction ID so the form resets when a different transaction is opened,
+    // and saved with rememberSaveable so input survives rotation. The amount is kept as text while typing.
     var kind by rememberSaveable(transactionToEdit?.id) {
         mutableStateOf(transactionToEdit?.kind?.name ?: TransactionKind.EXPENSE.name)
     }
@@ -142,19 +154,23 @@ fun AddTransactionScreen(
     var voiceNotePath by rememberSaveable(transactionToEdit?.id) {
         mutableStateOf(transactionToEdit?.voiceNotePath)
     }
+    // Receipt state: the camera URI/file are remembered until the camera returns a result.
     var showReceiptOptions by rememberSaveable { mutableStateOf(false) }
     var pendingCameraUri by rememberSaveable { mutableStateOf("") }
     var pendingCameraFile by rememberSaveable { mutableStateOf("") }
     var receiptError by rememberSaveable { mutableStateOf("") }
+    // UI flags for the dropdown, validation message and delete dialog.
     var categoryExpanded by rememberSaveable { mutableStateOf(false) }
     var attemptedSave by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
 
+    // Lets the user pick an existing image (e.g. from the gallery) as the receipt.
     val receiptPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
             try {
+                // Ask to keep read access to the image so it can still be opened after an app restart.
                 context.contentResolver.takePersistableUriPermission(
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION
@@ -167,9 +183,11 @@ fun AddTransactionScreen(
         }
     }
 
+    // Opens the camera app. The photo is written straight into the file we passed it.
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
+        // Keep the photo if one was taken; otherwise delete the empty placeholder file.
         if (success && pendingCameraUri.isNotBlank()) {
             receiptUri = pendingCameraUri
             receiptError = ""
@@ -182,6 +200,10 @@ fun AddTransactionScreen(
         pendingCameraFile = ""
     }
 
+    /**
+     * Creates an empty file in the app's private "receipts" folder, wraps it in a FileProvider
+     * content:// URI (the camera app can't write to our private files directly), and launches the camera.
+     */
     fun takeReceiptPhoto() {
         try {
             val dir = File(context.filesDir, "receipts")
@@ -204,6 +226,7 @@ fun AddTransactionScreen(
         }
     }
 
+    // Opens the attached receipt in the phone's image viewer.
     fun viewReceipt() {
         val uriString = receiptUri ?: return
         try {
@@ -219,9 +242,11 @@ fun AddTransactionScreen(
         }
     }
 
+    // The Save button only works when the amount is a positive number and description and category are filled in.
     val numericAmount = amount.toDoubleOrNull()
     val canSave = numericAmount != null && numericAmount > 0.0 &&
             description.isNotBlank() && category.isNotBlank()
+    // Show the categories that match the selected type.
     val categories = if (kind == TransactionKind.INCOME.name) incomeCategories else expenseCategories
 
     Column(
@@ -231,6 +256,7 @@ fun AddTransactionScreen(
             .padding(horizontal = 23.dp)
             .padding(top = 25.dp, bottom = 32.dp)
     ) {
+        // Header: back button, title (Add or Edit) and currency label.
         Row(verticalAlignment = Alignment.Top) {
             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                 Icon(Icons.Outlined.ArrowBack, stringResource(R.string.action_back), tint = formNavy)
@@ -253,6 +279,7 @@ fun AddTransactionScreen(
                 modifier = Modifier.padding(top = 25.dp))
         }
 
+        // Receipt area: tapping it opens a dialog to choose camera or gallery.
         Spacer(Modifier.height(28.dp))
         Text(stringResource(R.string.form_receipt_heading), color = formMuted, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
         Spacer(Modifier.height(10.dp))
@@ -273,6 +300,7 @@ fun AddTransactionScreen(
                 fontWeight = FontWeight.SemiBold
             )
         }
+        // Once a receipt is attached, show View and Remove buttons.
         if (!receiptUri.isNullOrBlank()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -295,6 +323,7 @@ fun AddTransactionScreen(
             Text(receiptError, color = formRed, fontSize = 12.sp)
         }
 
+        // Expense / Income toggle. Switching type clears a category that doesn't belong to the new type.
         Spacer(Modifier.height(18.dp))
         Row(
             modifier = Modifier.fillMaxWidth()
@@ -327,6 +356,7 @@ fun AddTransactionScreen(
             color = formMuted,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
+        // Large amount input centred on the screen.
         Spacer(Modifier.height(7.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -337,6 +367,7 @@ fun AddTransactionScreen(
             BasicTextField(
                 value = amount,
                 onValueChange = { entered ->
+                    // Only accept up to 9 digits before the decimal point and 2 after it.
                     if (entered.isEmpty() || entered.matches(Regex("\\d{0,9}(\\.\\d{0,2})?"))) {
                         amount = entered
                     }
@@ -346,6 +377,7 @@ fun AddTransactionScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 cursorBrush = SolidColor(formGreen),
                 textStyle = TextStyle(color = formNavy, fontSize = 51.sp, textAlign = TextAlign.Center),
+                // Shows a "0.00" placeholder while the field is empty.
                 decorationBox = { inner ->
                     Box(contentAlignment = Alignment.Center) {
                         if (amount.isEmpty()) {
@@ -370,6 +402,7 @@ fun AddTransactionScreen(
         )
 
         Spacer(Modifier.height(13.dp))
+        // Category dropdown and date picker side by side.
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(modifier = Modifier.weight(1f)) {
                 Row(
@@ -406,6 +439,7 @@ fun AddTransactionScreen(
             Row(
                 modifier = Modifier.weight(1f)
                     .background(formSurface, RoundedCornerShape(16.dp))
+                    // Opens Android's date picker. Its months are 0-based, while LocalDate's are 1-based, so we adjust by 1.
                     .clickable {
                         val current = runCatching { LocalDate.parse(date) }.getOrElse { LocalDate.now() }
                         DatePickerDialog(
@@ -448,6 +482,7 @@ fun AddTransactionScreen(
             onVoiceNotePathChange = { newPath -> voiceNotePath = newPath }
         )
 
+        // Only show the "required fields" error after the user has tried to save once.
         if (attemptedSave && !canSave) {
             Spacer(Modifier.height(12.dp))
             Text(stringResource(R.string.form_required_error), color = formRed, fontSize = 13.sp)
@@ -458,6 +493,7 @@ fun AddTransactionScreen(
             onClick = {
                 attemptedSave = true
                 if (canSave) {
+                    // Build the transaction from the form. Editing keeps the original ID; a new transaction uses 0.
                     onSave(
                         SpendTransaction(
                             id = transactionToEdit?.id ?: 0L,
@@ -490,6 +526,7 @@ fun AddTransactionScreen(
         }
     }
 
+    // Dialog that asks whether to take a new photo or choose one from the gallery.
     if (showReceiptOptions) {
         AlertDialog(
             onDismissRequest = { showReceiptOptions = false },
@@ -515,6 +552,7 @@ fun AddTransactionScreen(
         )
     }
 
+    // Confirmation dialog before deleting while editing.
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
@@ -536,6 +574,7 @@ fun AddTransactionScreen(
 
 
 // Notes field without a separate label.
+/** Multi-line notes input (2 to 3 lines) with a placeholder and a notes icon. */
 @Composable
 private fun NotesInputField(
     notes: String,
@@ -590,6 +629,7 @@ private fun NotesInputField(
     }
 }
 
+/** One half of the Expense/Income toggle; the selected option gets a white background. */
 @Composable
 private fun KindOption(
     text: String,
@@ -613,6 +653,7 @@ private fun KindOption(
     }
 }
 
+/** Outlined text field colours matching the form's palette. */
 @Composable
 private fun softInputColors() = OutlinedTextFieldDefaults.colors(
     focusedContainerColor = formSurface,
@@ -628,6 +669,7 @@ private fun softInputColors() = OutlinedTextFieldDefaults.colors(
     cursorColor = formGreen
 )
 
+// Shows the stored yyyy-MM-dd date as e.g. "Nov 23, 2026".
 private fun displayFormDate(value: String): String = runCatching {
     LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault()))
 }.getOrElse { value }

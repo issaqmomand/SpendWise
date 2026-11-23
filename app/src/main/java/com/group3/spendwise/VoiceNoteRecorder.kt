@@ -13,6 +13,11 @@ import java.io.FileInputStream
 import java.io.IOException
 import java.util.UUID
 
+/**
+ * Records and plays back voice notes that can be attached to a transaction.
+ * Recordings are saved as .m4a files in the app's private storage (filesDir/voice_notes),
+ * so other apps can't access them. Call [release] when the screen using this is closed.
+ */
 class VoiceNoteRecorder(context: Context) {
 
     companion object {
@@ -21,9 +26,13 @@ class VoiceNoteRecorder(context: Context) {
 
     private val appContext = context.applicationContext
 
+    // Active recorder, or null when not recording.
     private var recorder: MediaRecorder? = null
+    // Active player, or null when nothing is playing.
     private var player: MediaPlayer? = null
+    // File the current recording is being written to.
     private var recordingFile: File? = null
+    // Time the recording started, used to log its length.
     private var recordingStartedAt = 0L
 
     val isRecording: Boolean
@@ -33,6 +42,7 @@ class VoiceNoteRecorder(context: Context) {
         get() = player?.isPlaying == true
 
     @Suppress("DEPRECATION")
+    // MediaRecorder(Context) was added in Android 12 (S); older versions use the deprecated no-arg constructor.
     private fun createRecorder(): MediaRecorder {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             MediaRecorder(appContext)
@@ -41,11 +51,16 @@ class VoiceNoteRecorder(context: Context) {
         }
     }
 
+    /**
+     * Starts recording from the microphone into a new uniquely named file.
+     * Requires the RECORD_AUDIO permission. Throws if a recording is already running or setup fails.
+     */
     fun startRecording() {
         check(!isRecording) {
             "A recording is already in progress."
         }
 
+        // Stop any playback so it doesn't get picked up by the microphone.
         stopPlayback()
 
         val directory = File(
@@ -64,6 +79,7 @@ class VoiceNoteRecorder(context: Context) {
 
         val newRecorder = createRecorder()
 
+        // Configure the recorder: mic input, MP4 container, AAC audio at 128 kbps / 44.1 kHz.
         try {
             newRecorder.setAudioSource(
                 MediaRecorder.AudioSource.MIC
@@ -97,6 +113,7 @@ class VoiceNoteRecorder(context: Context) {
                 "RECORD STARTED: ${file.name}"
             )
 
+        // Clean up the recorder and the half-written file if anything went wrong.
         } catch (e: Exception) {
             Log.e(TAG, "RECORD START FAILED", e)
 
@@ -107,6 +124,10 @@ class VoiceNoteRecorder(context: Context) {
         }
     }
 
+    /**
+     * Stops recording and returns the saved file's absolute path,
+     * or null if nothing was recorded or saving failed (the file is deleted in that case).
+     */
     fun stopRecording(): String? {
         val activeRecorder = recorder ?: return null
         val file = recordingFile
@@ -122,6 +143,7 @@ class VoiceNoteRecorder(context: Context) {
             -1
         }
 
+        // Clear the fields first so isRecording becomes false even if stop() throws.
         recorder = null
         recordingFile = null
 
@@ -138,6 +160,7 @@ class VoiceNoteRecorder(context: Context) {
                         "fileSize=$fileSize bytes"
             )
 
+            // Only keep the file if it actually contains data.
             if (file != null && file.exists() && fileSize > 0L) {
                 if (peakAmplitude == 0) {
                     Log.w(
@@ -157,11 +180,13 @@ class VoiceNoteRecorder(context: Context) {
             file?.delete()
             null
 
+        // Always free the recorder's native resources.
         } finally {
             activeRecorder.release()
         }
     }
 
+    /** Stops the current recording without keeping it, and deletes the file. */
     fun cancelRecording() {
         val activeRecorder = recorder
         val file = recordingFile
@@ -182,6 +207,10 @@ class VoiceNoteRecorder(context: Context) {
         file?.delete()
     }
 
+    /**
+     * Plays the voice note saved at [filePath].
+     * @param onFinished Called when playback ends or fails, so the UI can reset its play button.
+     */
     fun playRecording(
         filePath: String,
         onFinished: () -> Unit = {}
@@ -213,6 +242,7 @@ class VoiceNoteRecorder(context: Context) {
                     .build()
             )
 
+            // Pass a file descriptor so MediaPlayer can read our private file directly.
             FileInputStream(file).use { input ->
                 newPlayer.setDataSource(input.fd)
             }
@@ -233,6 +263,7 @@ class VoiceNoteRecorder(context: Context) {
                 true
             }
 
+            // prepare() loads the file synchronously; fine here because voice notes are short.
             newPlayer.prepare()
 
             Log.i(
@@ -255,12 +286,14 @@ class VoiceNoteRecorder(context: Context) {
         }
     }
 
+    /** Stops and releases the media player, if one is active. */
     fun stopPlayback() {
         val activePlayer = player
         player = null
         activePlayer?.release()
     }
 
+    /** Stops everything and frees resources. Call when the owning screen is disposed. */
     fun release() {
         cancelRecording()
         stopPlayback()

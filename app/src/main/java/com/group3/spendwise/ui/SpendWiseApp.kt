@@ -18,8 +18,10 @@ fun SpendWiseApp(
     onDarkModeChange: (Boolean) -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
+    // Tracks whether the logged-out user is on the Register screen instead of Login.
     var showRegister by rememberSaveable { mutableStateOf(false) }
 
+    // Pick the top-level screen based on login state.
     when {
         authViewModel.isLoggedIn -> MainScreen(
             userName = authViewModel.userName,

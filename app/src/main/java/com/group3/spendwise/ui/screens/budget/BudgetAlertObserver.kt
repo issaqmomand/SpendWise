@@ -31,6 +31,15 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 // Monitors the monthly budget without changing the Budget screen.
+/**
+ * Invisible composable (draws nothing) placed in MainScreen. It recalculates this month's
+ * spending whenever transactions or budget settings change and asks
+ * [BudgetNotificationManager] to send a budget alert if needed.
+ * It also asks for the notification permission on Android 13+ the first time the Budget tab is opened with alerts on.
+ * @param ownerUid Signed-in user's ID.
+ * @param transactions All of the user's transactions.
+ * @param budgetTabVisible True while the Budget tab is selected.
+ */
 @Composable
 fun BudgetAlertObserver(
     ownerUid: String,
@@ -39,6 +48,7 @@ fun BudgetAlertObserver(
 ) {
     val context = LocalContext.current
 
+    // Same preferences file the Budget screen writes the monthly budget into.
     val preferences = remember(context) {
         context.getSharedPreferences(
             "spendwise_monthly_budgets",
@@ -51,10 +61,12 @@ fun BudgetAlertObserver(
     }
 
     // Refresh when budget settings change.
+    // Incrementing this counter forces the budget check below to run again.
     var preferencesRevision by remember {
         mutableIntStateOf(0)
     }
 
+    // Listen for budget or alert setting changes; the listener is removed when this composable leaves the screen.
     DisposableEffect(preferences) {
         val listener =
             SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -78,6 +90,7 @@ fun BudgetAlertObserver(
         mutableIntStateOf(0)
     }
 
+    // Bumped each time the activity resumes, e.g. after the user enables notifications in Android Settings.
     val activity = context as? Activity
 
     DisposableEffect(activity) {
@@ -115,12 +128,14 @@ fun BudgetAlertObserver(
         }
     }
 
+    // Current month, e.g. "2026-11"; used to build the preference keys.
     val month = YearMonth.now()
     val monthKey = month.toString()
 
     val budgetKey = "budget_${ownerUid}_$monthKey"
     val alertKey = "alert90_$ownerUid"
 
+    // Read this month's budget. Missing, invalid or non-positive values become 0.0 (no budget set).
     val monthlyBudget = preferences.getString(
         budgetKey,
         null
@@ -136,6 +151,7 @@ fun BudgetAlertObserver(
         false
     )
 
+    // Add up all expenses dated in the current month. Dates that fail to parse are skipped.
     val monthlyExpenses = transactions.asSequence()
         .filter {
             it.kind == TransactionKind.EXPENSE
@@ -153,6 +169,7 @@ fun BudgetAlertObserver(
         mutableIntStateOf(0)
     }
 
+    // Notifications need runtime permission only on Android 13 (TIRAMISU) and newer.
     val permissionGranted =
         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                 ContextCompat.checkSelfPermission(
@@ -160,16 +177,19 @@ fun BudgetAlertObserver(
                     Manifest.permission.POST_NOTIFICATIONS
                 ) == PackageManager.PERMISSION_GRANTED
 
+    // Shows the system permission dialog; when it closes, bump the counter to re-run the check.
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) {
         permissionRevision++
     }
 
+    // Make sure we only ask once per user (saved across rotation).
     var permissionRequested by rememberSaveable(ownerUid) {
         mutableStateOf(false)
     }
 
+    // Ask for notification permission when the user opens the Budget tab with alerts on but no permission yet.
     LaunchedEffect(
         budgetTabVisible,
         alertsEnabled,
@@ -205,6 +225,7 @@ fun BudgetAlertObserver(
         resumeRevision,
         permissionRevision
     ) {
+        // Debug log so the budget check can be followed in Logcat.
         Log.d(
             "SpendWiseBudget",
             "Budget check: budget=$monthlyBudget " +
@@ -214,6 +235,7 @@ fun BudgetAlertObserver(
                     "tab=$budgetTabVisible"
         )
 
+        // Nothing to check without a user, permission, alerts enabled, and a budget.
         if (
             ownerUid.isBlank() ||
             !permissionGranted ||

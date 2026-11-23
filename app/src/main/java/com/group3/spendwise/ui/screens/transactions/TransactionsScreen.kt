@@ -88,6 +88,7 @@ private data class TransactionsPalette(
     val selectedTabText: Color
 )
 
+/** Returns theme colours in dark mode and the original fixed colours in light mode. */
 @Composable
 private fun transactionsPalette(): TransactionsPalette {
     val scheme = MaterialTheme.colorScheme
@@ -122,9 +123,22 @@ private fun transactionsPalette(): TransactionsPalette {
     }
 }
 
+// Type filter tabs at the top of the list.
 private enum class TransactionFilter { ALL, INCOME, EXPENSES }
+// Special value meaning "no category filter"; can't clash with a real category name.
 private const val ALL_CATEGORIES = "__all_categories__"
 
+/**
+ * Transaction history screen: monthly income/expense totals, filter tabs
+ * (All / Income / Expenses), a category dropdown, and the list grouped by date.
+ * The action callbacks are nullable; passing null hides that button on each row.
+ * @param transactions All of the user's transactions.
+ * @param onAddClick Opens the Add Transaction tab (used by the empty state).
+ * @param onTransactionClick Opens the details screen.
+ * @param onEditClick Opens the edit form.
+ * @param onDeleteClick Deletes after the user confirms in a dialog.
+ * @param onReceiptClick Opens the receipt photo.
+ */
 @Composable
 fun TransactionsScreen(
     transactions: List<SpendTransaction> = emptyList(),
@@ -135,9 +149,11 @@ fun TransactionsScreen(
     onReceiptClick: ((SpendTransaction) -> Unit)? = null
 ) {
     val colors = transactionsPalette()
+    // Filter state. The enum is saved by name because rememberSaveable can store Strings directly.
     var filter by rememberSaveable { mutableStateOf(TransactionFilter.ALL.name) }
     var category by rememberSaveable { mutableStateOf(ALL_CATEGORIES) }
     var categoriesExpanded by rememberSaveable { mutableStateOf(false) }
+    // ID of the transaction waiting for delete confirmation (null = no dialog).
     var pendingDelete by rememberSaveable { mutableStateOf<Long?>(null) }
 
     // A single player is shared across the list so only one note plays at a time.
@@ -149,6 +165,7 @@ fun TransactionsScreen(
         onDispose { audioPlayer.release() }
     }
 
+    // Plays the row's voice note, or stops it if that row is already playing.
     val toggleVoiceNote: (SpendTransaction) -> Unit = { transaction ->
         val path = transaction.voiceNotePath
         if (!path.isNullOrBlank()) {
@@ -173,13 +190,16 @@ fun TransactionsScreen(
         }
     }
 
+    // Totals for the current month only.
     val now = YearMonth.now()
     val monthTransactions = transactions.filter { transaction ->
         runCatching { YearMonth.from(LocalDate.parse(transaction.date)) }.getOrNull() == now
     }
     val monthlyIncome = monthTransactions.filter { it.kind == TransactionKind.INCOME }.sumOf { it.amount }
     val monthlyExpenses = monthTransactions.filter { it.kind == TransactionKind.EXPENSE }.sumOf { it.amount }
+    // Categories that actually appear in the user's data, for the dropdown.
     val allCategories = transactions.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
+    // Apply the type and category filters, then sort newest first.
     val shownTransactions = transactions
         .filter { transaction ->
             val matchesType = when (filter) {
@@ -195,8 +215,10 @@ fun TransactionsScreen(
                     )
         }
         .sortedWith(compareByDescending<SpendTransaction> { it.date }.thenByDescending { it.id })
+    // Group by date so each day gets its own header in the list.
     val grouped = shownTransactions.groupBy { it.date }.entries.toList()
 
+    // LazyColumn only builds the rows that are visible, which keeps long lists smooth.
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(colors.background),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp),
@@ -217,6 +239,7 @@ fun TransactionsScreen(
             }
         }
 
+        // Monthly income and expense summary cards.
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 MonthlySummaryCard(
@@ -230,6 +253,7 @@ fun TransactionsScreen(
             }
         }
 
+        // All / Income / Expenses filter tabs.
         item {
             HorizontalDivider(color = colors.accent, thickness = 1.dp)
             Spacer(Modifier.height(6.dp))
@@ -297,6 +321,7 @@ fun TransactionsScreen(
             }
         }
 
+        // Empty state when nothing matches, otherwise the grouped list.
         item {
             if (shownTransactions.isEmpty()) {
                 Column(
@@ -319,6 +344,7 @@ fun TransactionsScreen(
                         .background(colors.surface, RoundedCornerShape(26.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
+                    // One date header followed by that day's transactions.
                     grouped.forEachIndexed { groupIndex, entry ->
                         if (groupIndex > 0) Spacer(Modifier.height(4.dp))
                         Text(
@@ -341,6 +367,7 @@ fun TransactionsScreen(
                                 allowDelete = onDeleteClick != null,
                                 allowReceipt = onReceiptClick != null
                             )
+                            // Thin divider between rows; a coloured one marks the end of a date group.
                             if (index != entry.value.lastIndex || groupIndex != grouped.lastIndex) {
                                 HorizontalDivider(
                                     color = if (index == entry.value.lastIndex) {
@@ -359,6 +386,7 @@ fun TransactionsScreen(
         }
     }
 
+    // Confirmation dialog shown before deleting a transaction.
     val toDelete = transactions.firstOrNull { it.id == pendingDelete }
     if (toDelete != null) {
         AlertDialog(
@@ -379,6 +407,7 @@ fun TransactionsScreen(
     }
 }
 
+/** Small card showing a monthly total; [positive] picks the income (down arrow) or expense (up arrow) style. */
 @Composable
 private fun MonthlySummaryCard(title: String, amount: Double, positive: Boolean, modifier: Modifier = Modifier) {
     val colors = transactionsPalette()
@@ -407,6 +436,10 @@ private fun MonthlySummaryCard(title: String, amount: Double, positive: Boolean,
     }
 }
 
+/**
+ * One transaction in the list: category icon, description, category/date and signed amount.
+ * Below it are Edit/Delete actions and, when available, View receipt and Play voice note links.
+ */
 @Composable
 private fun TransactionRow(
     transaction: SpendTransaction,
@@ -459,6 +492,7 @@ private fun TransactionRow(
                 maxLines = 1
             )
         }
+        // Edit and Delete actions, shown only if the parent passed those callbacks.
         Row(modifier = Modifier.padding(start = 56.dp, top = 1.dp), verticalAlignment = Alignment.CenterVertically) {
             if (allowEdit) {
                 Row(
@@ -481,6 +515,7 @@ private fun TransactionRow(
                 }
             }
         }
+        // "View receipt" link, only when a photo is attached.
         if (!transaction.receiptUri.isNullOrBlank() && allowReceipt) {
             Row(
                 modifier = Modifier
@@ -530,16 +565,20 @@ private fun TransactionRow(
     }
 }
 
+// Formats an amount as Canadian dollars, e.g. "$1,234.50".
 private fun money(amount: Double): String = "$" + String.format(Locale.CANADA, "%,.2f", amount)
 
+// Date header format, e.g. "November 23". Falls back to the raw text if parsing fails.
 private fun displayGroupDate(value: String): String = runCatching {
     LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault()))
 }.getOrElse { value }
 
+// Short date for each row, e.g. "Nov 23".
 private fun displayShortDate(value: String): String = runCatching {
     LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
 }.getOrElse { value }
 
+// Chooses an icon for a category; unknown categories get a generic "more" icon.
 private fun categoryIcon(category: String): ImageVector = when (category.lowercase(Locale.getDefault())) {
     "food", "groceries", "shopping" -> Icons.Outlined.ShoppingBasket
     "coffee" -> Icons.Outlined.Coffee

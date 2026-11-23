@@ -63,9 +63,11 @@ private data class BudgetPalette(
     val exceededTrack: Color
 )
 
+/** Returns theme colours in dark mode and the original fixed colours in light mode. */
 @Composable
 private fun budgetPalette(): BudgetPalette {
     val scheme = MaterialTheme.colorScheme
+    // A dark background has low luminance (brightness), so this tells us if dark mode is on.
     val isDark = scheme.background.luminance() < 0.5f
 
     return if (isDark) {
@@ -106,6 +108,7 @@ private fun budgetMoney(value: Double): String {
 }
 
 // Category colors.
+// Colour of the small dot shown next to each category in the spending list.
 private fun categoryDot(category: String): Color {
     return when (category.lowercase(Locale.getDefault())) {
         "food", "groceries" -> Color(0xFF688B70)
@@ -120,6 +123,14 @@ private fun categoryDot(category: String): Color {
     }
 }
 
+/**
+ * Monthly budget screen. The user picks a month, sets a budget for it, and sees how much
+ * has been spent (ring + progress bar), spending per category, a 90% alert toggle,
+ * and a warning when the budget is exceeded.
+ * Budgets are saved in SharedPreferences under "budget_<uid>_<yyyy-MM>", so each user and month has its own.
+ * @param transactions All of the user's transactions.
+ * @param ownerUid Signed-in user's ID, used in the preference keys.
+ */
 @Composable
 fun BudgetScreen(
     transactions: List<SpendTransaction>,
@@ -136,14 +147,17 @@ fun BudgetScreen(
         )
     }
 
+    // How many months away from the current month the user is viewing (0 = this month, -1 = last month).
     var monthOffset by rememberSaveable(ownerUid) {
         mutableIntStateOf(0)
     }
 
+    // Whether the month dropdown is open.
     var monthMenuOpen by remember {
         mutableStateOf(false)
     }
 
+    // The month being viewed, e.g. "2026-11", and the preference keys for it.
     val selectedMonth = YearMonth.now()
         .plusMonths(monthOffset.toLong())
 
@@ -152,6 +166,7 @@ fun BudgetScreen(
     val alertKey = "alert90_$ownerUid"
 
     // Load the selected month's budget.
+    // Saved budget for this month, or null if none (or the saved value is invalid).
     var target by remember(ownerUid, monthKey) {
         mutableStateOf(
             preferences.getString(
@@ -163,6 +178,7 @@ fun BudgetScreen(
         )
     }
 
+    // Text in the budget editor dialog (kept as a string while the user types).
     var targetInput by remember(ownerUid, monthKey) {
         mutableStateOf(
             target?.let {
@@ -180,6 +196,7 @@ fun BudgetScreen(
         mutableStateOf("")
     }
 
+    // Whether the "alert me at 90%" switch is on (one setting per user, not per month).
     var alertsEnabled by remember(ownerUid) {
         mutableStateOf(
             preferences.getBoolean(alertKey, false)
@@ -195,6 +212,7 @@ fun BudgetScreen(
         }.getOrNull() == selectedMonth
     }
 
+    // This month's expenses, total spent, and income (the budget can't be higher than income).
     val monthExpenses = monthTransactions.filter {
         it.kind == TransactionKind.EXPENSE
     }
@@ -205,6 +223,7 @@ fun BudgetScreen(
         .sumOf { it.amount }
 
     // Monthly budget calculations.
+    // Remaining money, percent used and progress are null/0 when no budget is set.
     val remaining = target?.minus(spent)
 
     val percent = target?.let {
@@ -215,6 +234,7 @@ fun BudgetScreen(
         (spent / it).toFloat().coerceIn(0f, 1f)
     } ?: 0f
 
+    // Exceeded = spent more than the budget; nearLimit = between 90% and 100%.
     val isExceeded = target?.let {
         spent > it
     } ?: false
@@ -223,6 +243,7 @@ fun BudgetScreen(
         spent >= it * 0.9 && spent <= it
     } ?: false
 
+    // Red when exceeded, warning colour near the limit, green otherwise.
     val meterColor = when {
         isExceeded -> colors.error
         nearLimit -> colors.warning
@@ -230,6 +251,7 @@ fun BudgetScreen(
     }
 
     // Category spending calculated using Room transactions.
+    // Group expenses by category (blank -> "Other") and sort by amount, largest first.
     val categoryTotals = monthExpenses
         .groupBy {
             it.category.ifBlank { "Other" }
@@ -292,6 +314,7 @@ fun BudgetScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
+            // Previous month arrow.
             MonthArrowButton(
                 previous = true,
                 onClick = {
@@ -300,6 +323,7 @@ fun BudgetScreen(
                 }
             )
 
+            // Tapping the month name opens a dropdown of months.
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -354,6 +378,7 @@ fun BudgetScreen(
                         monthMenuOpen = false
                     }
                 ) {
+                    // Offers 12 months back to 3 months ahead, newest first.
                     (-12..3).reversed().forEach { offset ->
                         val month = YearMonth.now()
                             .plusMonths(offset.toLong())
@@ -378,6 +403,7 @@ fun BudgetScreen(
                 }
             }
 
+            // Next month arrow.
             MonthArrowButton(
                 previous = false,
                 onClick = {
@@ -402,6 +428,7 @@ fun BudgetScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Circular ring showing the percent of the budget used.
                     BudgetRing(
                         progress = progress,
                         label = percent?.let {
@@ -503,6 +530,7 @@ fun BudgetScreen(
                     trackColor = colors.sage
                 )
 
+                // Hint shown when no budget has been set for this month.
                 if (target == null) {
                     Spacer(Modifier.height(7.dp))
 
@@ -533,6 +561,7 @@ fun BudgetScreen(
                     fontSize = 20.sp
                 )
 
+                // One row per category: coloured dot, category name, amount spent.
                 if (categoryTotals.isEmpty()) {
                     Text(
                         text = stringResource(R.string.budget_no_expenses),
@@ -595,6 +624,7 @@ fun BudgetScreen(
                             colors.sage,
                             RoundedCornerShape(16.dp)
                         )
+                        // Fill the editor with the current budget before opening the dialog.
                         .clickable {
                             targetInput = target?.let {
                                 String.format(Locale.US, "%.2f", it)
@@ -645,6 +675,7 @@ fun BudgetScreen(
                 modifier = Modifier.weight(1f)
             )
 
+            // Save the switch state right away. BudgetAlertObserver picks up the change and checks the budget.
             Switch(
                 checked = alertsEnabled,
                 onCheckedChange = { enabled ->
@@ -751,6 +782,7 @@ fun BudgetScreen(
                     )
                 }
             }
+        // Below the limit but at 90% or more: show a yellow warning (only when alerts are on).
         } else if (alertsEnabled && nearLimit) {
             Text(
                 text = stringResource(R.string.budget_warning_used, String.format(Locale.getDefault(), "%.1f", percent ?: 0.0)),
@@ -795,6 +827,7 @@ fun BudgetScreen(
 
                     OutlinedTextField(
                         value = targetInput,
+                        // Only accept up to 9 digits before the decimal point and 2 after it.
                         onValueChange = { value ->
                             if (
                                 value.isEmpty() ||
@@ -840,6 +873,8 @@ fun BudgetScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        // Validate the amount: must be signed in, a positive number, and not more than this month's income.
+                        // If valid, save it and close the dialog; otherwise show the error message.
                         val amount = targetInput.toDoubleOrNull()
                         budgetErrorText = when {
                             ownerUid.isBlank() ->
@@ -886,6 +921,7 @@ fun BudgetScreen(
 }
 
 // Separate white month arrow buttons.
+/** Rounded arrow button used to move one month back or forward. */
 @Composable
 private fun MonthArrowButton(
     previous: Boolean,
@@ -919,6 +955,12 @@ private fun MonthArrowButton(
 }
 
 // Circular budget progress indicator.
+/**
+ * Ring chart drawn with Canvas: a grey full circle as the track, and a coloured arc on top
+ * for the used part. The arc starts at the top (-90 degrees) and goes clockwise.
+ * @param progress Fraction of the budget used, from 0 to 1.
+ * @param label Text in the middle, e.g. "67.5%".
+ */
 @Composable
 private fun BudgetRing(
     progress: Float,
@@ -934,6 +976,7 @@ private fun BudgetRing(
         Canvas(
             modifier = Modifier.fillMaxSize()
         ) {
+            // Leave room for the stroke so the ring isn't cut off at the edges.
             val stroke = 14.dp.toPx()
             val diameter = size.minDimension - stroke
 
@@ -987,6 +1030,7 @@ private fun BudgetRing(
 }
 
 // Compact label/value row.
+/** One "label ...... value" line, e.g. "Total spent $675.00". */
 @Composable
 private fun BudgetAmountLine(
     label: String,

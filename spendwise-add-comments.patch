@@ -1,0 +1,2609 @@
+From 31dc949e36bcf7f8ac13024e2019e45553e164b4 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Mon, 23 Nov 2026 10:11:20 -0500
+Subject: [PATCH] Add KDoc and inline comments to Kotlin source files
+
+Documentation only: no code changes. Adds class/function KDoc and inline
+comments explaining auth, Room persistence, navigation, camera/FileProvider
+receipts, voice notes, budget alerts/notifications and the Canvas charts.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_013eLNg2XNXXKyeR6zvMxiQA
+---
+ .../spendwise/BudgetNotificationManager.kt    | 28 +++++++++++
+ .../java/com/group3/spendwise/MainActivity.kt |  7 +++
+ .../group3/spendwise/ReceiptFileProvider.kt   |  5 ++
+ .../spendwise/TransactionSuccessSound.kt      |  6 +++
+ .../com/group3/spendwise/VoiceNoteRecorder.kt | 33 ++++++++++++
+ .../group3/spendwise/auth/AuthViewModel.kt    | 29 +++++++++++
+ .../spendwise/data/TransactionRepository.kt   | 10 ++++
+ .../spendwise/data/local/SpendWiseDatabase.kt | 17 +++++++
+ .../spendwise/model/SpendTransaction.kt       | 14 ++++++
+ .../com/group3/spendwise/ui/SpendWiseApp.kt   |  2 +
+ .../ui/components/AppLanguageDialog.kt        |  6 +++
+ .../ui/components/AppLanguageManager.kt       |  6 +++
+ .../spendwise/ui/components/AuthComponents.kt | 15 ++++++
+ .../spendwise/ui/components/CategoryLabels.kt |  6 +++
+ .../ui/components/VoiceNoteSection.kt         | 21 ++++++++
+ .../spendwise/ui/screens/auth/LoginScreen.kt  |  9 ++++
+ .../ui/screens/auth/RegisterScreen.kt         |  8 +++
+ .../ui/screens/budget/BudgetAlertObserver.kt  | 22 ++++++++
+ .../ui/screens/budget/BudgetScreen.kt         | 44 ++++++++++++++++
+ .../ui/screens/dashboard/DashBoardScreen.kt   | 29 +++++++++++
+ .../ui/screens/insights/InsightsScreen.kt     | 50 +++++++++++++++++++
+ .../ui/screens/navigation/MainScreen.kt       | 27 ++++++++++
+ .../transactions/AddTransactionScreen.kt      | 42 ++++++++++++++++
+ .../transactions/TransactionDetailsScreen.kt  | 22 ++++++++
+ .../transactions/TransactionsScreen.kt        | 39 +++++++++++++++
+ .../com/group3/spendwise/ui/theme/Color.kt    |  2 +
+ .../com/group3/spendwise/ui/theme/Theme.kt    |  7 +++
+ 27 files changed, 506 insertions(+)
+
+diff --git a/app/src/main/java/com/group3/spendwise/BudgetNotificationManager.kt b/app/src/main/java/com/group3/spendwise/BudgetNotificationManager.kt
+index 36ece26..8ecf861 100644
+--- a/app/src/main/java/com/group3/spendwise/BudgetNotificationManager.kt
++++ b/app/src/main/java/com/group3/spendwise/BudgetNotificationManager.kt
+@@ -25,8 +25,10 @@ import kotlin.math.roundToLong
+ // Sends budget alerts when spending or the budget changes.
+ class BudgetNotificationManager(context: Context) {
+ 
++    // Use the application context so this class never holds on to a screen/Activity.
+     private val appContext = context.applicationContext
+ 
++    // Remembers the last alert level per user and month, so we don't send the same alert twice.
+     private val preferences = appContext.getSharedPreferences(
+         "spendwise_budget_notifications",
+         Context.MODE_PRIVATE
+@@ -36,9 +38,11 @@ class BudgetNotificationManager(context: Context) {
+         NotificationManagerCompat.from(appContext)
+ 
+     companion object {
++        // Notification channel ID (required on Android 8.0+).
+         private const val CHANNEL_ID = "spendwise_budget_alerts"
+ 
+ 
++        // Alert levels, in increasing order so they can be compared with > and <.
+         private const val BELOW_WARNING = 0
+         private const val WARNING_90 = 1
+         private const val EXCEEDED_100 = 2
+@@ -48,6 +52,7 @@ class BudgetNotificationManager(context: Context) {
+         createNotificationChannel()
+     }
+ 
++    // Android 8.0 (API 26) and newer require a channel before any notification can be shown.
+     private fun createNotificationChannel() {
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+ 
+@@ -69,6 +74,16 @@ class BudgetNotificationManager(context: Context) {
+     }
+ 
+     // Called when budget settings or transaction totals change.
++    /**
++     * Decides whether to send a "close to budget" (90%) or "over budget" (100%) notification.
++     * Alerts are only sent when something meaningful changes: a higher level is reached,
++     * the budget amount changes, or spending goes up while already over budget.
++     * @param ownerUid Signed-in user's ID, so each user has separate alert history.
++     * @param monthKey Month being checked, in yyyy-MM format.
++     * @param monthlyBudget Budget set for that month.
++     * @param monthlyExpenses Total expenses recorded for that month.
++     * @param alertsEnabled The user's setting for budget alerts.
++     */
+     fun checkBudget(
+         ownerUid: String,
+         monthKey: String,
+@@ -76,11 +91,13 @@ class BudgetNotificationManager(context: Context) {
+         monthlyExpenses: Double,
+         alertsEnabled: Boolean
+     ) {
++        // Skip if alerts are off, the input is invalid, or we are not allowed to post notifications.
+         if (!alertsEnabled || ownerUid.isBlank()) return
+         if (!monthlyBudget.isFinite() || monthlyBudget <= 0.0) return
+         if (!monthlyExpenses.isFinite()) return
+         if (!hasNotificationPermission()) return
+ 
++        // All saved keys start with user + month so every month starts fresh.
+         val keyPrefix = "${ownerUid}_${monthKey}"
+ 
+         // Compare currency values to the nearest cent.
+@@ -149,10 +166,12 @@ class BudgetNotificationManager(context: Context) {
+                                     increasedWhileOverBudget
+                             )
+ 
++        // Only set if a notification was actually posted.
+         var nextNotificationId: Int? = null
+ 
+         if (shouldNotify) {
+ 
++            // Format the month name (e.g. "November 2026") in the user's language; fall back to the raw key.
+             val displayMonth = runCatching {
+                 YearMonth.parse(monthKey).format(
+                     DateTimeFormatter.ofPattern(
+@@ -162,6 +181,7 @@ class BudgetNotificationManager(context: Context) {
+                 )
+             }.getOrDefault(monthKey)
+ 
++            // Amounts are shown in Canadian dollars using the device locale's formatting.
+             val currency = NumberFormat.getCurrencyInstance(
+                 appContext.resources.configuration.locales[0]
+             ).apply {
+@@ -217,6 +237,7 @@ class BudgetNotificationManager(context: Context) {
+         }.apply()
+     }
+ 
++    /** Returns true if notifications are enabled and, on Android 13+, the POST_NOTIFICATIONS permission is granted. */
+     private fun hasNotificationPermission(): Boolean {
+         if (!notificationManager.areNotificationsEnabled()) {
+             return false
+@@ -235,6 +256,10 @@ class BudgetNotificationManager(context: Context) {
+         return true
+     }
+ 
++    /**
++     * Builds and posts the notification. Tapping it opens the app.
++     * Returns false if posting failed (e.g. permission was revoked).
++     */
+     @SuppressLint("MissingPermission")
+     private fun showNotification(
+         title: String,
+@@ -242,6 +267,7 @@ class BudgetNotificationManager(context: Context) {
+         notificationId: Int
+     ): Boolean {
+ 
++        // Intent that brings the existing app screen to the front instead of starting a new copy.
+         val launchIntent = appContext.packageManager
+             .getLaunchIntentForPackage(appContext.packageName)
+             ?.apply {
+@@ -251,6 +277,7 @@ class BudgetNotificationManager(context: Context) {
+                 )
+             }
+ 
++        // FLAG_IMMUTABLE is required for PendingIntents on Android 12+.
+         val pendingIntent = launchIntent?.let {
+             PendingIntent.getActivity(
+                 appContext,
+@@ -270,6 +297,7 @@ class BudgetNotificationManager(context: Context) {
+             )
+             .setContentTitle(title)
+             .setContentText(message)
++            // BigTextStyle lets the full message show when the notification is expanded.
+             .setStyle(
+                 NotificationCompat.BigTextStyle()
+                     .bigText(message)
+diff --git a/app/src/main/java/com/group3/spendwise/MainActivity.kt b/app/src/main/java/com/group3/spendwise/MainActivity.kt
+index 1c37f2c..90a415d 100644
+--- a/app/src/main/java/com/group3/spendwise/MainActivity.kt
++++ b/app/src/main/java/com/group3/spendwise/MainActivity.kt
+@@ -15,10 +15,15 @@ import androidx.core.view.WindowCompat
+ import com.group3.spendwise.ui.theme.SpendWiseTheme
+ import com.group3.spendwise.ui.SpendWiseApp
+ 
++/**
++ * The single Activity of the app. Everything on screen is drawn with Jetpack Compose,
++ * starting from [SpendWiseApp]. Extends AppCompatActivity so per-app language switching works.
++ */
+ class MainActivity : AppCompatActivity() {
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+ 
++        // Draw the app behind the status and navigation bars (edge-to-edge layout).
+         enableEdgeToEdge(
+             statusBarStyle = SystemBarStyle.light(
+                 android.graphics.Color.TRANSPARENT,
+@@ -30,6 +35,7 @@ class MainActivity : AppCompatActivity() {
+         val settings = getSharedPreferences("spendwise_settings", Context.MODE_PRIVATE)
+ 
+         setContent {
++            // Dark mode flag, initialised from saved settings and kept across rotations.
+             var darkMode by rememberSaveable {
+                 mutableStateOf(settings.getBoolean("dark_mode", false))
+             }
+@@ -45,6 +51,7 @@ class MainActivity : AppCompatActivity() {
+             SpendWiseTheme(darkTheme = darkMode) {
+                 SpendWiseApp(
+                     isDarkMode = darkMode,
++                    // Update the UI immediately and save the choice for the next launch.
+                     onDarkModeChange = { enabled ->
+                         darkMode = enabled
+                         settings.edit().putBoolean("dark_mode", enabled).apply()
+diff --git a/app/src/main/java/com/group3/spendwise/ReceiptFileProvider.kt b/app/src/main/java/com/group3/spendwise/ReceiptFileProvider.kt
+index f674b81..3611e16 100644
+--- a/app/src/main/java/com/group3/spendwise/ReceiptFileProvider.kt
++++ b/app/src/main/java/com/group3/spendwise/ReceiptFileProvider.kt
+@@ -4,4 +4,9 @@ package com.group3.spendwise
+ import androidx.core.content.FileProvider
+ 
+ // Provides secure access to receipt photos for the camera.
++/**
++ * Registered in AndroidManifest.xml with the authority "<package>.receiptprovider".
++ * It turns private receipt files into content:// URIs so the camera app can save the photo
++ * and image viewer apps can open it, without exposing the app's whole storage.
++ */
+ class ReceiptFileProvider : FileProvider()
+diff --git a/app/src/main/java/com/group3/spendwise/TransactionSuccessSound.kt b/app/src/main/java/com/group3/spendwise/TransactionSuccessSound.kt
+index d0589ea..62026e9 100644
+--- a/app/src/main/java/com/group3/spendwise/TransactionSuccessSound.kt
++++ b/app/src/main/java/com/group3/spendwise/TransactionSuccessSound.kt
+@@ -7,6 +7,7 @@ import android.media.SoundPool
+ // Plays a short confirmation chime when a transaction is saved.
+ class TransactionSuccessSound(context: Context) {
+ 
++    // SoundPool is used instead of MediaPlayer because it is better suited for short, low-latency sound effects.
+     private val soundPool = SoundPool.Builder()
+         .setMaxStreams(1)
+         .setAudioAttributes(
+@@ -17,9 +18,13 @@ class TransactionSuccessSound(context: Context) {
+         )
+         .build()
+ 
++    // ID of the loaded sound inside the SoundPool.
+     private var soundId = 0
++    // True once the sound file has finished loading.
+     private var soundLoaded = false
++    // Set when play() is called before loading finishes, so the sound plays as soon as it is ready.
+     private var pendingPlay = false
++    // Prevents using the SoundPool after it has been released.
+     private var released = false
+ 
+     init {
+@@ -46,6 +51,7 @@ class TransactionSuccessSound(context: Context) {
+         soundPool.play(soundId, 0.65f, 0.65f, 1, 0, 1.0f)
+     }
+ 
++    /** Frees the SoundPool. Call this when the owning screen is disposed. */
+     fun release() {
+         if (released) return
+         released = true
+diff --git a/app/src/main/java/com/group3/spendwise/VoiceNoteRecorder.kt b/app/src/main/java/com/group3/spendwise/VoiceNoteRecorder.kt
+index ebaf305..f2e157b 100644
+--- a/app/src/main/java/com/group3/spendwise/VoiceNoteRecorder.kt
++++ b/app/src/main/java/com/group3/spendwise/VoiceNoteRecorder.kt
+@@ -13,6 +13,11 @@ import java.io.FileInputStream
+ import java.io.IOException
+ import java.util.UUID
+ 
++/**
++ * Records and plays back voice notes that can be attached to a transaction.
++ * Recordings are saved as .m4a files in the app's private storage (filesDir/voice_notes),
++ * so other apps can't access them. Call [release] when the screen using this is closed.
++ */
+ class VoiceNoteRecorder(context: Context) {
+ 
+     companion object {
+@@ -21,9 +26,13 @@ class VoiceNoteRecorder(context: Context) {
+ 
+     private val appContext = context.applicationContext
+ 
++    // Active recorder, or null when not recording.
+     private var recorder: MediaRecorder? = null
++    // Active player, or null when nothing is playing.
+     private var player: MediaPlayer? = null
++    // File the current recording is being written to.
+     private var recordingFile: File? = null
++    // Time the recording started, used to log its length.
+     private var recordingStartedAt = 0L
+ 
+     val isRecording: Boolean
+@@ -33,6 +42,7 @@ class VoiceNoteRecorder(context: Context) {
+         get() = player?.isPlaying == true
+ 
+     @Suppress("DEPRECATION")
++    // MediaRecorder(Context) was added in Android 12 (S); older versions use the deprecated no-arg constructor.
+     private fun createRecorder(): MediaRecorder {
+         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+             MediaRecorder(appContext)
+@@ -41,11 +51,16 @@ class VoiceNoteRecorder(context: Context) {
+         }
+     }
+ 
++    /**
++     * Starts recording from the microphone into a new uniquely named file.
++     * Requires the RECORD_AUDIO permission. Throws if a recording is already running or setup fails.
++     */
+     fun startRecording() {
+         check(!isRecording) {
+             "A recording is already in progress."
+         }
+ 
++        // Stop any playback so it doesn't get picked up by the microphone.
+         stopPlayback()
+ 
+         val directory = File(
+@@ -64,6 +79,7 @@ class VoiceNoteRecorder(context: Context) {
+ 
+         val newRecorder = createRecorder()
+ 
++        // Configure the recorder: mic input, MP4 container, AAC audio at 128 kbps / 44.1 kHz.
+         try {
+             newRecorder.setAudioSource(
+                 MediaRecorder.AudioSource.MIC
+@@ -97,6 +113,7 @@ class VoiceNoteRecorder(context: Context) {
+                 "RECORD STARTED: ${file.name}"
+             )
+ 
++        // Clean up the recorder and the half-written file if anything went wrong.
+         } catch (e: Exception) {
+             Log.e(TAG, "RECORD START FAILED", e)
+ 
+@@ -107,6 +124,10 @@ class VoiceNoteRecorder(context: Context) {
+         }
+     }
+ 
++    /**
++     * Stops recording and returns the saved file's absolute path,
++     * or null if nothing was recorded or saving failed (the file is deleted in that case).
++     */
+     fun stopRecording(): String? {
+         val activeRecorder = recorder ?: return null
+         val file = recordingFile
+@@ -122,6 +143,7 @@ class VoiceNoteRecorder(context: Context) {
+             -1
+         }
+ 
++        // Clear the fields first so isRecording becomes false even if stop() throws.
+         recorder = null
+         recordingFile = null
+ 
+@@ -138,6 +160,7 @@ class VoiceNoteRecorder(context: Context) {
+                         "fileSize=$fileSize bytes"
+             )
+ 
++            // Only keep the file if it actually contains data.
+             if (file != null && file.exists() && fileSize > 0L) {
+                 if (peakAmplitude == 0) {
+                     Log.w(
+@@ -157,11 +180,13 @@ class VoiceNoteRecorder(context: Context) {
+             file?.delete()
+             null
+ 
++        // Always free the recorder's native resources.
+         } finally {
+             activeRecorder.release()
+         }
+     }
+ 
++    /** Stops the current recording without keeping it, and deletes the file. */
+     fun cancelRecording() {
+         val activeRecorder = recorder
+         val file = recordingFile
+@@ -182,6 +207,10 @@ class VoiceNoteRecorder(context: Context) {
+         file?.delete()
+     }
+ 
++    /**
++     * Plays the voice note saved at [filePath].
++     * @param onFinished Called when playback ends or fails, so the UI can reset its play button.
++     */
+     fun playRecording(
+         filePath: String,
+         onFinished: () -> Unit = {}
+@@ -213,6 +242,7 @@ class VoiceNoteRecorder(context: Context) {
+                     .build()
+             )
+ 
++            // Pass a file descriptor so MediaPlayer can read our private file directly.
+             FileInputStream(file).use { input ->
+                 newPlayer.setDataSource(input.fd)
+             }
+@@ -233,6 +263,7 @@ class VoiceNoteRecorder(context: Context) {
+                 true
+             }
+ 
++            // prepare() loads the file synchronously; fine here because voice notes are short.
+             newPlayer.prepare()
+ 
+             Log.i(
+@@ -255,12 +286,14 @@ class VoiceNoteRecorder(context: Context) {
+         }
+     }
+ 
++    /** Stops and releases the media player, if one is active. */
+     fun stopPlayback() {
+         val activePlayer = player
+         player = null
+         activePlayer?.release()
+     }
+ 
++    /** Stops everything and frees resources. Call when the owning screen is disposed. */
+     fun release() {
+         cancelRecording()
+         stopPlayback()
+diff --git a/app/src/main/java/com/group3/spendwise/auth/AuthViewModel.kt b/app/src/main/java/com/group3/spendwise/auth/AuthViewModel.kt
+index e62916e..c87bd88 100644
+--- a/app/src/main/java/com/group3/spendwise/auth/AuthViewModel.kt
++++ b/app/src/main/java/com/group3/spendwise/auth/AuthViewModel.kt
+@@ -17,17 +17,26 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
+ import com.google.firebase.auth.FirebaseAuthUserCollisionException
+ import com.google.firebase.auth.UserProfileChangeRequest
+ 
++/**
++ * Handles sign-in, registration, password reset and logout using Firebase Authentication.
++ * The public properties are Compose state, so the auth screens update automatically
++ * whenever they change. Error/info messages are loaded from string resources so they are translated.
++ */
+ class AuthViewModel : ViewModel() {
+ 
++    // Application context, used to read translated strings outside of Compose.
+     private val appContext = FirebaseApp.getInstance().applicationContext
++    // Firebase Auth entry point; keeps the user signed in between app launches.
+     private val auth = FirebaseAuth.getInstance()
+ 
++    // Local preferences used by the dashboard (cleared for brand-new accounts).
+     private val dashboardPreferences = FirebaseApp.getInstance()
+         .applicationContext.getSharedPreferences(
+             "spendwise_dashboard",
+             Context.MODE_PRIVATE
+         )
+ 
++    // True when a Firebase user is signed in. Read-only from outside (private set).
+     var isLoggedIn by mutableStateOf(auth.currentUser != null)
+         private set
+ 
+@@ -41,26 +50,32 @@ class AuthViewModel : ViewModel() {
+     )
+         private set
+ 
++    // True while a Firebase request is running; used to show a spinner on the button.
+     var isLoading by mutableStateOf(false)
+         private set
+ 
++    // Error text shown under the form, or null when there is no error.
+     var errorMessage by mutableStateOf<String?>(null)
+         private set
+ 
++    // Success/info text (e.g. "reset email sent"), or null.
+     var infoMessage by mutableStateOf<String?>(null)
+         private set
+ 
++    /** Removes any error or info message currently shown on screen. */
+     fun clearMessages() {
+         errorMessage = null
+         infoMessage = null
+     }
+ 
+     // Login
++    /** Validates the inputs, then signs in with Firebase. On success the app switches to the main screen. */
+     fun login(email: String, password: String) {
+         clearMessages()
+ 
+         val cleanEmail = email.trim()
+ 
++        // Stop early if a field is empty or the email is not valid, so we don't call Firebase for nothing.
+         if (cleanEmail.isEmpty() || password.isEmpty()) {
+             errorMessage = appContext.getString(R.string.error_auth_empty)
+             return
+@@ -73,6 +88,7 @@ class AuthViewModel : ViewModel() {
+ 
+         isLoading = true
+ 
++        // Firebase runs the request in the background and calls this listener when it finishes.
+         auth.signInWithEmailAndPassword(cleanEmail, password)
+             .addOnCompleteListener { task ->
+                 isLoading = false
+@@ -86,6 +102,10 @@ class AuthViewModel : ViewModel() {
+     }
+ 
+     // Registration
++    /**
++     * Validates the form, creates the Firebase account, then saves the user's full name
++     * as their Firebase display name.
++     */
+     fun register(
+         fullName: String,
+         email: String,
+@@ -97,6 +117,7 @@ class AuthViewModel : ViewModel() {
+         val name = fullName.trim()
+         val cleanEmail = email.trim()
+ 
++        // registrationError returns a message when validation fails, or null when everything is OK.
+         registrationError(
+             name,
+             cleanEmail,
+@@ -140,6 +161,7 @@ class AuthViewModel : ViewModel() {
+                     .setDisplayName(name)
+                     .build()
+ 
++                // Save the display name; refreshUser() runs afterwards so the dashboard shows the name.
+                 user.updateProfile(profile)
+                     .addOnCompleteListener {
+                         isLoading = false
+@@ -149,6 +171,7 @@ class AuthViewModel : ViewModel() {
+     }
+ 
+     // Password reset
++    /** Sends a Firebase password reset email to [email]. */
+     fun sendPasswordReset(email: String) {
+         clearMessages()
+ 
+@@ -176,6 +199,7 @@ class AuthViewModel : ViewModel() {
+     }
+ 
+     // Logout
++    /** Signs the user out and returns to the login screen. */
+     fun logout() {
+         auth.signOut()
+         clearMessages()
+@@ -183,6 +207,7 @@ class AuthViewModel : ViewModel() {
+     }
+ 
+     // Update authenticated user information
++    // Copies the current Firebase user into the Compose state so the UI recomposes.
+     private fun refreshUser() {
+         val user = auth.currentUser
+ 
+@@ -192,11 +217,14 @@ class AuthViewModel : ViewModel() {
+     }
+ 
+     // Email validation
++    // Uses Android's built-in email pattern to check the format.
+     private fun isValidEmail(email: String): Boolean {
+         return Patterns.EMAIL_ADDRESS.matcher(email).matches()
+     }
+ 
+     // Registration validation
++    // Returns the first validation problem found, or null if the form is valid.
++    // Passwords must be at least 8 characters and contain a digit.
+     private fun registrationError(
+         name: String,
+         email: String,
+@@ -220,6 +248,7 @@ class AuthViewModel : ViewModel() {
+     }
+ 
+     // Firebase error messages
++    // Turns a Firebase exception into a short, user-friendly (translated) message.
+     private fun friendlyError(e: Exception?): String = when (e) {
+ 
+         is FirebaseAuthInvalidUserException ->
+diff --git a/app/src/main/java/com/group3/spendwise/data/TransactionRepository.kt b/app/src/main/java/com/group3/spendwise/data/TransactionRepository.kt
+index 2588ef6..21e8120 100644
+--- a/app/src/main/java/com/group3/spendwise/data/TransactionRepository.kt
++++ b/app/src/main/java/com/group3/spendwise/data/TransactionRepository.kt
+@@ -10,17 +10,24 @@ import kotlinx.coroutines.flow.flowOf
+ import kotlinx.coroutines.flow.map
+ 
+ /** Database mapping and persistence stay outside Compose screen files. */
++// Room DAO used for every database call in this repository.
+ class TransactionRepository(context: Context) {
+     private val dao = SpendWiseDatabase.getInstance(context.applicationContext).transactionDao()
+ 
++    /**
++     * Streams the signed-in user's transactions. Room emits a new list every time the table changes,
++     * so screens collecting this Flow refresh automatically. A blank uid returns an empty list.
++     */
+     fun observeForUser(uid: String): Flow<List<SpendTransaction>> =
+         if (uid.isBlank()) flowOf(emptyList()) else dao.observeForUser(uid).map { items ->
+             items.map { it.toModel() }
+         }
+ 
++    /** Saves a new transaction for [uid] and returns its generated ID. The id is reset to 0 so Room auto-generates it. */
+     suspend fun insert(uid: String, transaction: SpendTransaction): Long =
+         dao.insert(transaction.toEntity(uid).copy(id = 0L))
+ 
++    /** Updates an existing transaction owned by [uid]. Returns the number of rows changed (0 if it was not found). */
+     suspend fun update(uid: String, transaction: SpendTransaction): Int =
+         dao.updateWithVoiceNote(
+             transactionId = transaction.id,
+@@ -35,8 +42,10 @@ class TransactionRepository(context: Context) {
+             voiceNotePath = transaction.voiceNotePath
+         )
+ 
++    /** Deletes transaction [id] only if it belongs to [uid]. Returns the number of rows removed. */
+     suspend fun delete(uid: String, id: Long): Int = dao.delete(id, uid)
+ 
++    // Converts a database row into the app model. Any unknown kind value falls back to EXPENSE.
+     private fun TransactionEntity.toModel() = SpendTransaction(
+         id = id,
+         description = description,
+@@ -49,6 +58,7 @@ class TransactionRepository(context: Context) {
+         voiceNotePath = voiceNotePath
+     )
+ 
++    // Converts the app model into a database row tied to the owner's uid.
+     private fun SpendTransaction.toEntity(uid: String) = TransactionEntity(
+         id = id,
+         ownerUid = uid,
+diff --git a/app/src/main/java/com/group3/spendwise/data/local/SpendWiseDatabase.kt b/app/src/main/java/com/group3/spendwise/data/local/SpendWiseDatabase.kt
+index f3ff174..57564c5 100644
+--- a/app/src/main/java/com/group3/spendwise/data/local/SpendWiseDatabase.kt
++++ b/app/src/main/java/com/group3/spendwise/data/local/SpendWiseDatabase.kt
+@@ -20,6 +20,11 @@ import kotlinx.coroutines.flow.Flow
+     tableName = "transactions",
+     indices = [Index(value = ["ownerUid"])]
+ )
++/**
++ * One row in the "transactions" table. The index on ownerUid keeps per-user queries fast.
++ * [kind] is stored as the enum name ("INCOME"/"EXPENSE") and [date] as yyyy-MM-dd text,
++ * so sorting by date as a string still gives the correct chronological order.
++ */
+ data class TransactionEntity(
+     @PrimaryKey(autoGenerate = true)
+     val id: Long = 0,
+@@ -36,9 +41,11 @@ data class TransactionEntity(
+     val voiceNotePath: String? = null
+ )
+ 
++/** Data Access Object: all SQL queries for the transactions table. */
+ @Dao
+ interface TransactionDao {
+ 
++    // Returns a live stream of the user's transactions, newest first. Room re-emits whenever the table changes.
+     @Query(
+         """
+         SELECT * FROM transactions
+@@ -56,6 +63,7 @@ interface TransactionDao {
+         transaction: TransactionEntity
+     ): Long
+ 
++    // Deletes a transaction only when it belongs to the given user, so one user can't delete another's data.
+     @Query(
+         """
+         DELETE FROM transactions
+@@ -125,6 +133,10 @@ interface TransactionDao {
+     ): Int
+ }
+ 
++/**
++ * Room database for the app. Bump [version] and add a Migration whenever the schema changes.
++ * Use [getInstance] instead of building the database directly.
++ */
+ @Database(
+     entities = [TransactionEntity::class],
+     version = 2,
+@@ -136,6 +148,7 @@ abstract class SpendWiseDatabase : RoomDatabase() {
+ 
+     companion object {
+ 
++        // @Volatile makes the latest INSTANCE value visible to all threads immediately.
+         @Volatile
+         private var INSTANCE: SpendWiseDatabase? = null
+ 
+@@ -154,6 +167,10 @@ abstract class SpendWiseDatabase : RoomDatabase() {
+             }
+         }
+ 
++        /**
++         * Returns the single shared database instance (singleton). The synchronized block
++         * makes sure two threads can't create two databases at the same time.
++         */
+         fun getInstance(
+             context: Context
+         ): SpendWiseDatabase {
+diff --git a/app/src/main/java/com/group3/spendwise/model/SpendTransaction.kt b/app/src/main/java/com/group3/spendwise/model/SpendTransaction.kt
+index bcc8226..e35f7b9 100644
+--- a/app/src/main/java/com/group3/spendwise/model/SpendTransaction.kt
++++ b/app/src/main/java/com/group3/spendwise/model/SpendTransaction.kt
+@@ -1,7 +1,21 @@
+ package com.group3.spendwise.model
+ 
++/** Whether a transaction adds money (INCOME) or removes money (EXPENSE). */
+ enum class TransactionKind { INCOME, EXPENSE }
+ 
++/**
++ * App-wide model for a single income or expense entry.
++ * The UI works with this class; the repository converts it to/from the Room entity.
++ * @property id Room primary key (0 for a transaction that has not been saved yet).
++ * @property description Short name shown in lists, e.g. "Groceries".
++ * @property amount Always stored as a positive number; [kind] decides the sign.
++ * @property category Stable English category ID (translated only when displayed).
++ * @property date Date of the transaction in yyyy-MM-dd format.
++ * @property kind Income or expense.
++ * @property notes Optional free-text note.
++ * @property receiptUri Optional content URI of the attached receipt photo.
++ * @property voiceNotePath Optional file path of an attached voice note recording.
++ */
+ data class SpendTransaction(
+     val id: Long,
+     val description: String,
+diff --git a/app/src/main/java/com/group3/spendwise/ui/SpendWiseApp.kt b/app/src/main/java/com/group3/spendwise/ui/SpendWiseApp.kt
+index 5522eff..efef797 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/SpendWiseApp.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/SpendWiseApp.kt
+@@ -18,8 +18,10 @@ fun SpendWiseApp(
+     onDarkModeChange: (Boolean) -> Unit,
+     authViewModel: AuthViewModel = viewModel()
+ ) {
++    // Tracks whether the logged-out user is on the Register screen instead of Login.
+     var showRegister by rememberSaveable { mutableStateOf(false) }
+ 
++    // Pick the top-level screen based on login state.
+     when {
+         authViewModel.isLoggedIn -> MainScreen(
+             userName = authViewModel.userName,
+diff --git a/app/src/main/java/com/group3/spendwise/ui/components/AppLanguageDialog.kt b/app/src/main/java/com/group3/spendwise/ui/components/AppLanguageDialog.kt
+index d126508..a730469 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/components/AppLanguageDialog.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/components/AppLanguageDialog.kt
+@@ -32,14 +32,17 @@ import com.group3.spendwise.ui.settings.AppLanguageManager
+ @Composable
+ fun AppLanguageDialog(onDismiss: () -> Unit) {
+     // Keep these choices local to this composable to avoid duplicate type declarations.
++    // Each pair is (language tag, label string). An empty tag means "use the device language".
+     val languageChoices = listOf(
+         "" to R.string.language_system,
+         "en" to R.string.language_english,
+         "fr" to R.string.language_french
+     )
++    // Work out which option is currently active so it can be shown on the button.
+     val selectedTag = AppLanguageManager.selectedLanguageTag()
+     val selectedLabelId = languageChoices.firstOrNull { it.first == selectedTag }
+         ?.second ?: R.string.language_system
++    // Controls whether the dropdown list is open.
+     var expanded by remember { mutableStateOf(false) }
+ 
+     AlertDialog(
+@@ -53,6 +56,7 @@ fun AppLanguageDialog(onDismiss: () -> Unit) {
+                 )
+                 Spacer(Modifier.height(16.dp))
+                 Box(modifier = Modifier.fillMaxWidth()) {
++                    // Button showing the current language; tapping it opens the dropdown.
+                     OutlinedButton(
+                         onClick = { expanded = true },
+                         modifier = Modifier.fillMaxWidth()
+@@ -70,12 +74,14 @@ fun AppLanguageDialog(onDismiss: () -> Unit) {
+                         expanded = expanded,
+                         onDismissRequest = { expanded = false }
+                     ) {
++                        // One menu row per language, with a check mark next to the active one.
+                         languageChoices.forEach { (tag, labelId) ->
+                             DropdownMenuItem(
+                                 text = { Text(stringResource(labelId)) },
+                                 onClick = {
+                                     expanded = false
+                                     onDismiss()
++                                    // Only switch if the user picked a different language (switching recreates the activity).
+                                     if (tag != selectedTag) {
+                                         AppLanguageManager.selectLanguage(tag)
+                                     }
+diff --git a/app/src/main/java/com/group3/spendwise/ui/components/AppLanguageManager.kt b/app/src/main/java/com/group3/spendwise/ui/components/AppLanguageManager.kt
+index 3aafe8f..bb8579a 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/components/AppLanguageManager.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/components/AppLanguageManager.kt
+@@ -9,9 +9,15 @@ import androidx.core.os.LocaleListCompat
+  * An empty language tag means "follow the device language".
+  */
+ object AppLanguageManager {
++    /** Returns the language code the user picked in the app (e.g. "fr"), or "" when following the device. */
+     fun selectedLanguageTag(): String =
+         AppCompatDelegate.getApplicationLocales().get(0)?.language.orEmpty()
+ 
++    /**
++     * Switches the app to [languageTag] (e.g. "en" or "fr").
++     * Passing a blank tag clears the override so the app follows the device language.
++     * AppCompat recreates the activity automatically so the new strings are loaded.
++     */
+     fun selectLanguage(languageTag: String) {
+         val locales = if (languageTag.isBlank()) {
+             LocaleListCompat.getEmptyLocaleList()
+diff --git a/app/src/main/java/com/group3/spendwise/ui/components/AuthComponents.kt b/app/src/main/java/com/group3/spendwise/ui/components/AuthComponents.kt
+index b8a9a57..6244c29 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/components/AuthComponents.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/components/AuthComponents.kt
+@@ -49,8 +49,10 @@ import androidx.compose.ui.text.input.VisualTransformation
+ import androidx.compose.ui.unit.dp
+ 
+ // Shared header for login and registration, with language selection.
++/** App logo, name and tagline shown at the top of the login and register screens, plus a Language button. */
+ @Composable
+ fun AuthHeader() {
++    // Controls whether the language picker dialog is visible.
+     var showLanguageDialog by rememberSaveable { mutableStateOf(false) }
+ 
+     Column(modifier = Modifier.fillMaxWidth()) {
+@@ -80,6 +82,7 @@ fun AuthHeader() {
+ 
+         Spacer(Modifier.height(8.dp))
+ 
++        // Wallet icon logo next to the app name and tagline.
+         Row(verticalAlignment = Alignment.CenterVertically) {
+             Box(
+                 modifier = Modifier
+@@ -116,12 +119,14 @@ fun AuthHeader() {
+         }
+     }
+ 
++    // Show the language picker only when the button has been tapped.
+     if (showLanguageDialog) {
+         AppLanguageDialog(onDismiss = { showLanguageDialog = false })
+     }
+ }
+ 
+ // Shared text field colours
++/** Same colours for every text field on the auth screens, taken from the app theme. */
+ @Composable
+ private fun fieldColors(): TextFieldColors {
+     return OutlinedTextFieldDefaults.colors(
+@@ -136,6 +141,11 @@ private fun fieldColors(): TextFieldColors {
+ }
+ 
+ // Regular text field
++/**
++ * Single-line outlined text field used on the auth screens.
++ * @param keyboardType Which keyboard to show (e.g. Email).
++ * @param imeAction What the keyboard's action key does (Next moves to the next field).
++ */
+ @Composable
+ fun AppTextField(
+     label: String,
+@@ -163,6 +173,7 @@ fun AppTextField(
+ }
+ 
+ // Password field with visibility toggle
++/** Outlined password field that hides the text by default, with an eye icon to show/hide it. */
+ @Composable
+ fun PasswordField(
+     label: String,
+@@ -172,6 +183,7 @@ fun PasswordField(
+     modifier: Modifier = Modifier,
+     imeAction: ImeAction = ImeAction.Next
+ ) {
++    // Whether the password is currently shown as plain text.
+     var visible by rememberSaveable {
+         mutableStateOf(false)
+     }
+@@ -183,6 +195,7 @@ fun PasswordField(
+         placeholder = { Text(placeholder) },
+         singleLine = true,
+         shape = RoundedCornerShape(14.dp),
++        // PasswordVisualTransformation replaces each character with a dot.
+         visualTransformation =
+             if (visible) {
+                 VisualTransformation.None
+@@ -216,6 +229,7 @@ fun PasswordField(
+ }
+ 
+ // Main authentication button
++/** Full-width main action button. While [isLoading] is true it is disabled and shows a spinner instead of the text. */
+ @Composable
+ fun PrimaryButton(
+     text: String,
+@@ -254,6 +268,7 @@ fun PrimaryButton(
+ }
+ 
+ // Authentication feedback messages
++/** Shows the error message in red and/or the info message in the primary colour, if present. */
+ @Composable
+ fun AuthMessages(
+     errorMessage: String?,
+diff --git a/app/src/main/java/com/group3/spendwise/ui/components/CategoryLabels.kt b/app/src/main/java/com/group3/spendwise/ui/components/CategoryLabels.kt
+index 24e8917..f5d6468 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/components/CategoryLabels.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/components/CategoryLabels.kt
+@@ -6,10 +6,16 @@ import com.group3.spendwise.R
+ 
+ /** Persist original category IDs/English labels; translate only what the user sees. */
+ object TransactionCategories {
++    // Categories offered when adding an expense.
+     val expenses = listOf("Food", "Transportation", "Shopping", "Entertainment", "School", "Housing", "Subscriptions", "Other")
++    // Categories offered when adding income.
+     val income = listOf("Salary", "Gift", "Refund", "Other")
+ }
+ 
++/**
++ * Converts a stored category ID (e.g. "Food") into the translated label for the current language.
++ * Use this only for display; never save the returned text to the database.
++ */
+ @Composable
+ fun localizedCategory(value: String): String = when (value.lowercase(java.util.Locale.ROOT)) {
+     "food" -> stringResource(R.string.category_food)
+diff --git a/app/src/main/java/com/group3/spendwise/ui/components/VoiceNoteSection.kt b/app/src/main/java/com/group3/spendwise/ui/components/VoiceNoteSection.kt
+index 1b0689d..6f39b1e 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/components/VoiceNoteSection.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/components/VoiceNoteSection.kt
+@@ -45,32 +45,44 @@ import androidx.compose.ui.unit.sp
+ import androidx.core.content.ContextCompat
+ import com.group3.spendwise.VoiceNoteRecorder
+ 
++// Colours used only by the voice note controls.
+ private val voiceGreen = Color(0xFF477A62)
+ private val voiceNavy = Color(0xFF203846)
+ private val voiceMuted = Color(0xFF7A8880)
+ private val voiceRed = Color(0xFFC7554E)
+ private val voiceSage = Color(0xFFEAF1E9)
+ 
++/**
++ * Voice note controls used on the Add/Edit Transaction form. It has three states:
++ * recording (shows a Stop button), no voice note yet (shows "Add voice note"),
++ * or voice note attached (Play/Stop, Redo and Remove buttons).
++ * @param voiceNotePath Path of the current voice note, or null if none is attached.
++ * @param onVoiceNotePathChange Called with the new file path after recording, or null when removed.
++ */
+ @Composable
+ fun VoiceNoteSection(
+     voiceNotePath: String?,
+     onVoiceNotePathChange: (String?) -> Unit
+ ) {
+     val context = LocalContext.current
++    // One recorder per screen; remembered so it survives recompositions.
+     val audioRecorder = remember(context) {
+         VoiceNoteRecorder(context)
+     }
+ 
++    // UI state for the buttons and the status text under them.
+     var isRecording by remember { mutableStateOf(false) }
+     var isPlaying by remember { mutableStateOf(false) }
+     var message by remember { mutableStateOf("") }
+ 
++    // Stop any recording/playback and free the mic when this section leaves the screen.
+     DisposableEffect(audioRecorder) {
+         onDispose {
+             audioRecorder.release()
+         }
+     }
+ 
++    // Starts a new recording and updates the status message. Assumes the mic permission was already granted.
+     fun beginRecording() {
+         try {
+             audioRecorder.stopPlayback()
+@@ -85,6 +97,7 @@ fun VoiceNoteSection(
+         }
+     }
+ 
++    // Asks for microphone permission; starts recording right away if the user allows it.
+     val permissionLauncher = rememberLauncherForActivityResult(
+         contract = ActivityResultContracts.RequestPermission()
+     ) { granted ->
+@@ -107,10 +120,12 @@ fun VoiceNoteSection(
+ 
+         Spacer(Modifier.height(6.dp))
+ 
++        // Show different controls depending on the current state.
+         when {
+             isRecording -> {
+                 Button(
+                     onClick = {
++                        // Stop and keep the recording; a null path means it was too short or failed.
+                         val savedPath = audioRecorder.stopRecording()
+                         isRecording = false
+ 
+@@ -149,6 +164,7 @@ fun VoiceNoteSection(
+                 )
+             }
+ 
++            // No voice note yet: tapping the row checks mic permission, then starts recording.
+             voiceNotePath.isNullOrBlank() -> {
+                 Row(
+                     modifier = Modifier
+@@ -191,6 +207,7 @@ fun VoiceNoteSection(
+                 }
+             }
+ 
++            // A voice note is attached: show Play/Stop, Redo and Remove.
+             else -> {
+                 Text(
+                     text = stringResource(R.string.voice_added),
+@@ -208,6 +225,7 @@ fun VoiceNoteSection(
+                 ) {
+                     Button(
+                         onClick = {
++                            // Toggle playback; the callback resets the button when the clip finishes.
+                             if (isPlaying) {
+                                 audioRecorder.stopPlayback()
+                                 isPlaying = false
+@@ -240,6 +258,7 @@ fun VoiceNoteSection(
+                         )
+                     }
+ 
++                    // Redo: record a new voice note to replace the current one.
+                     TextButton(
+                         onClick = {
+                             audioRecorder.stopPlayback()
+@@ -271,6 +290,7 @@ fun VoiceNoteSection(
+                         )
+                     }
+ 
++                    // Remove: detach the voice note from the transaction.
+                     TextButton(
+                         onClick = {
+                             audioRecorder.stopPlayback()
+@@ -293,6 +313,7 @@ fun VoiceNoteSection(
+             }
+         }
+ 
++        // Status/error message under the controls (red while recording).
+         if (message.isNotBlank()) {
+             Spacer(Modifier.height(6.dp))
+ 
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/auth/LoginScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/auth/LoginScreen.kt
+index cae616a..6f337bf 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/auth/LoginScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/auth/LoginScreen.kt
+@@ -39,11 +39,17 @@ import com.group3.spendwise.ui.components.AuthMessages
+ import com.group3.spendwise.ui.components.PasswordField
+ import com.group3.spendwise.ui.components.PrimaryButton
+ 
++/**
++ * Sign-in screen with email/password fields, a "forgot password" link and a link to registration.
++ * All logic lives in [AuthViewModel]; this composable only displays state and forwards clicks.
++ * @param onGoToRegister Called when the user taps the register link.
++ */
+ @Composable
+ fun LoginScreen(
+     authViewModel: AuthViewModel,
+     onGoToRegister: () -> Unit
+ ) {
++    // rememberSaveable keeps what the user typed when the screen rotates.
+     var email by rememberSaveable { mutableStateOf("") }
+     var password by rememberSaveable { mutableStateOf("") }
+ 
+@@ -52,6 +58,7 @@ fun LoginScreen(
+             .fillMaxSize()
+             .background(MaterialTheme.colorScheme.background)
+             .systemBarsPadding()
++            // imePadding + verticalScroll keep the fields reachable when the keyboard is open.
+             .imePadding()
+             .verticalScroll(rememberScrollState())
+             .padding(horizontal = 24.dp, vertical = 16.dp)
+@@ -93,6 +100,7 @@ fun LoginScreen(
+             imeAction = ImeAction.Done
+         )
+ 
++        // Sends a reset email to whatever is typed in the email field.
+         TextButton(
+             onClick = { authViewModel.sendPasswordReset(email) },
+             modifier = Modifier.align(Alignment.End)
+@@ -104,6 +112,7 @@ fun LoginScreen(
+             )
+         }
+ 
++        // Shows any error or success message coming from the view model.
+         AuthMessages(
+             errorMessage = authViewModel.errorMessage,
+             infoMessage = authViewModel.infoMessage
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/auth/RegisterScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/auth/RegisterScreen.kt
+index 03f2d99..b4de330 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/auth/RegisterScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/auth/RegisterScreen.kt
+@@ -39,11 +39,17 @@ import com.group3.spendwise.ui.components.AuthMessages
+ import com.group3.spendwise.ui.components.PasswordField
+ import com.group3.spendwise.ui.components.PrimaryButton
+ 
++/**
++ * Account creation screen: full name, email, password and confirm password.
++ * Validation and Firebase calls are done in [AuthViewModel.register].
++ * @param onGoToLogin Called when the user taps the "already have an account" link.
++ */
+ @Composable
+ fun RegisterScreen(
+     authViewModel: AuthViewModel,
+     onGoToLogin: () -> Unit
+ ) {
++    // Form fields, saved across rotation.
+     var fullName by rememberSaveable { mutableStateOf("") }
+     var email by rememberSaveable { mutableStateOf("") }
+     var password by rememberSaveable { mutableStateOf("") }
+@@ -54,6 +60,7 @@ fun RegisterScreen(
+             .fillMaxSize()
+             .background(MaterialTheme.colorScheme.background)
+             .systemBarsPadding()
++            // imePadding + verticalScroll keep the fields reachable when the keyboard is open.
+             .imePadding()
+             .verticalScroll(rememberScrollState())
+             .padding(horizontal = 24.dp, vertical = 16.dp)
+@@ -114,6 +121,7 @@ fun RegisterScreen(
+         )
+ 
+         Spacer(Modifier.height(8.dp))
++        // Reminds the user of the password rule (8+ characters with a number).
+         Text(
+             text = stringResource(R.string.register_password_help),
+             style = MaterialTheme.typography.bodySmall,
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/budget/BudgetAlertObserver.kt b/app/src/main/java/com/group3/spendwise/ui/screens/budget/BudgetAlertObserver.kt
+index a701b42..a2a561c 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/budget/BudgetAlertObserver.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/budget/BudgetAlertObserver.kt
+@@ -31,6 +31,15 @@ import java.time.LocalDate
+ import java.time.YearMonth
+ 
+ // Monitors the monthly budget without changing the Budget screen.
++/**
++ * Invisible composable (draws nothing) placed in MainScreen. It recalculates this month's
++ * spending whenever transactions or budget settings change and asks
++ * [BudgetNotificationManager] to send a budget alert if needed.
++ * It also asks for the notification permission on Android 13+ the first time the Budget tab is opened with alerts on.
++ * @param ownerUid Signed-in user's ID.
++ * @param transactions All of the user's transactions.
++ * @param budgetTabVisible True while the Budget tab is selected.
++ */
+ @Composable
+ fun BudgetAlertObserver(
+     ownerUid: String,
+@@ -39,6 +48,7 @@ fun BudgetAlertObserver(
+ ) {
+     val context = LocalContext.current
+ 
++    // Same preferences file the Budget screen writes the monthly budget into.
+     val preferences = remember(context) {
+         context.getSharedPreferences(
+             "spendwise_monthly_budgets",
+@@ -51,10 +61,12 @@ fun BudgetAlertObserver(
+     }
+ 
+     // Refresh when budget settings change.
++    // Incrementing this counter forces the budget check below to run again.
+     var preferencesRevision by remember {
+         mutableIntStateOf(0)
+     }
+ 
++    // Listen for budget or alert setting changes; the listener is removed when this composable leaves the screen.
+     DisposableEffect(preferences) {
+         val listener =
+             SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+@@ -78,6 +90,7 @@ fun BudgetAlertObserver(
+         mutableIntStateOf(0)
+     }
+ 
++    // Bumped each time the activity resumes, e.g. after the user enables notifications in Android Settings.
+     val activity = context as? Activity
+ 
+     DisposableEffect(activity) {
+@@ -115,12 +128,14 @@ fun BudgetAlertObserver(
+         }
+     }
+ 
++    // Current month, e.g. "2026-11"; used to build the preference keys.
+     val month = YearMonth.now()
+     val monthKey = month.toString()
+ 
+     val budgetKey = "budget_${ownerUid}_$monthKey"
+     val alertKey = "alert90_$ownerUid"
+ 
++    // Read this month's budget. Missing, invalid or non-positive values become 0.0 (no budget set).
+     val monthlyBudget = preferences.getString(
+         budgetKey,
+         null
+@@ -136,6 +151,7 @@ fun BudgetAlertObserver(
+         false
+     )
+ 
++    // Add up all expenses dated in the current month. Dates that fail to parse are skipped.
+     val monthlyExpenses = transactions.asSequence()
+         .filter {
+             it.kind == TransactionKind.EXPENSE
+@@ -153,6 +169,7 @@ fun BudgetAlertObserver(
+         mutableIntStateOf(0)
+     }
+ 
++    // Notifications need runtime permission only on Android 13 (TIRAMISU) and newer.
+     val permissionGranted =
+         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                 ContextCompat.checkSelfPermission(
+@@ -160,16 +177,19 @@ fun BudgetAlertObserver(
+                     Manifest.permission.POST_NOTIFICATIONS
+                 ) == PackageManager.PERMISSION_GRANTED
+ 
++    // Shows the system permission dialog; when it closes, bump the counter to re-run the check.
+     val permissionLauncher = rememberLauncherForActivityResult(
+         ActivityResultContracts.RequestPermission()
+     ) {
+         permissionRevision++
+     }
+ 
++    // Make sure we only ask once per user (saved across rotation).
+     var permissionRequested by rememberSaveable(ownerUid) {
+         mutableStateOf(false)
+     }
+ 
++    // Ask for notification permission when the user opens the Budget tab with alerts on but no permission yet.
+     LaunchedEffect(
+         budgetTabVisible,
+         alertsEnabled,
+@@ -205,6 +225,7 @@ fun BudgetAlertObserver(
+         resumeRevision,
+         permissionRevision
+     ) {
++        // Debug log so the budget check can be followed in Logcat.
+         Log.d(
+             "SpendWiseBudget",
+             "Budget check: budget=$monthlyBudget " +
+@@ -214,6 +235,7 @@ fun BudgetAlertObserver(
+                     "tab=$budgetTabVisible"
+         )
+ 
++        // Nothing to check without a user, permission, alerts enabled, and a budget.
+         if (
+             ownerUid.isBlank() ||
+             !permissionGranted ||
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/budget/BudgetScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/budget/BudgetScreen.kt
+index a9d8d96..4b7b40d 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/budget/BudgetScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/budget/BudgetScreen.kt
+@@ -63,9 +63,11 @@ private data class BudgetPalette(
+     val exceededTrack: Color
+ )
+ 
++/** Returns theme colours in dark mode and the original fixed colours in light mode. */
+ @Composable
+ private fun budgetPalette(): BudgetPalette {
+     val scheme = MaterialTheme.colorScheme
++    // A dark background has low luminance (brightness), so this tells us if dark mode is on.
+     val isDark = scheme.background.luminance() < 0.5f
+ 
+     return if (isDark) {
+@@ -106,6 +108,7 @@ private fun budgetMoney(value: Double): String {
+ }
+ 
+ // Category colors.
++// Colour of the small dot shown next to each category in the spending list.
+ private fun categoryDot(category: String): Color {
+     return when (category.lowercase(Locale.getDefault())) {
+         "food", "groceries" -> Color(0xFF688B70)
+@@ -120,6 +123,14 @@ private fun categoryDot(category: String): Color {
+     }
+ }
+ 
++/**
++ * Monthly budget screen. The user picks a month, sets a budget for it, and sees how much
++ * has been spent (ring + progress bar), spending per category, a 90% alert toggle,
++ * and a warning when the budget is exceeded.
++ * Budgets are saved in SharedPreferences under "budget_<uid>_<yyyy-MM>", so each user and month has its own.
++ * @param transactions All of the user's transactions.
++ * @param ownerUid Signed-in user's ID, used in the preference keys.
++ */
+ @Composable
+ fun BudgetScreen(
+     transactions: List<SpendTransaction>,
+@@ -136,14 +147,17 @@ fun BudgetScreen(
+         )
+     }
+ 
++    // How many months away from the current month the user is viewing (0 = this month, -1 = last month).
+     var monthOffset by rememberSaveable(ownerUid) {
+         mutableIntStateOf(0)
+     }
+ 
++    // Whether the month dropdown is open.
+     var monthMenuOpen by remember {
+         mutableStateOf(false)
+     }
+ 
++    // The month being viewed, e.g. "2026-11", and the preference keys for it.
+     val selectedMonth = YearMonth.now()
+         .plusMonths(monthOffset.toLong())
+ 
+@@ -152,6 +166,7 @@ fun BudgetScreen(
+     val alertKey = "alert90_$ownerUid"
+ 
+     // Load the selected month's budget.
++    // Saved budget for this month, or null if none (or the saved value is invalid).
+     var target by remember(ownerUid, monthKey) {
+         mutableStateOf(
+             preferences.getString(
+@@ -163,6 +178,7 @@ fun BudgetScreen(
+         )
+     }
+ 
++    // Text in the budget editor dialog (kept as a string while the user types).
+     var targetInput by remember(ownerUid, monthKey) {
+         mutableStateOf(
+             target?.let {
+@@ -180,6 +196,7 @@ fun BudgetScreen(
+         mutableStateOf("")
+     }
+ 
++    // Whether the "alert me at 90%" switch is on (one setting per user, not per month).
+     var alertsEnabled by remember(ownerUid) {
+         mutableStateOf(
+             preferences.getBoolean(alertKey, false)
+@@ -195,6 +212,7 @@ fun BudgetScreen(
+         }.getOrNull() == selectedMonth
+     }
+ 
++    // This month's expenses, total spent, and income (the budget can't be higher than income).
+     val monthExpenses = monthTransactions.filter {
+         it.kind == TransactionKind.EXPENSE
+     }
+@@ -205,6 +223,7 @@ fun BudgetScreen(
+         .sumOf { it.amount }
+ 
+     // Monthly budget calculations.
++    // Remaining money, percent used and progress are null/0 when no budget is set.
+     val remaining = target?.minus(spent)
+ 
+     val percent = target?.let {
+@@ -215,6 +234,7 @@ fun BudgetScreen(
+         (spent / it).toFloat().coerceIn(0f, 1f)
+     } ?: 0f
+ 
++    // Exceeded = spent more than the budget; nearLimit = between 90% and 100%.
+     val isExceeded = target?.let {
+         spent > it
+     } ?: false
+@@ -223,6 +243,7 @@ fun BudgetScreen(
+         spent >= it * 0.9 && spent <= it
+     } ?: false
+ 
++    // Red when exceeded, warning colour near the limit, green otherwise.
+     val meterColor = when {
+         isExceeded -> colors.error
+         nearLimit -> colors.warning
+@@ -230,6 +251,7 @@ fun BudgetScreen(
+     }
+ 
+     // Category spending calculated using Room transactions.
++    // Group expenses by category (blank -> "Other") and sort by amount, largest first.
+     val categoryTotals = monthExpenses
+         .groupBy {
+             it.category.ifBlank { "Other" }
+@@ -292,6 +314,7 @@ fun BudgetScreen(
+             verticalAlignment = Alignment.CenterVertically
+         ) {
+ 
++            // Previous month arrow.
+             MonthArrowButton(
+                 previous = true,
+                 onClick = {
+@@ -300,6 +323,7 @@ fun BudgetScreen(
+                 }
+             )
+ 
++            // Tapping the month name opens a dropdown of months.
+             Box(
+                 modifier = Modifier.weight(1f),
+                 contentAlignment = Alignment.Center
+@@ -354,6 +378,7 @@ fun BudgetScreen(
+                         monthMenuOpen = false
+                     }
+                 ) {
++                    // Offers 12 months back to 3 months ahead, newest first.
+                     (-12..3).reversed().forEach { offset ->
+                         val month = YearMonth.now()
+                             .plusMonths(offset.toLong())
+@@ -378,6 +403,7 @@ fun BudgetScreen(
+                 }
+             }
+ 
++            // Next month arrow.
+             MonthArrowButton(
+                 previous = false,
+                 onClick = {
+@@ -402,6 +428,7 @@ fun BudgetScreen(
+                     modifier = Modifier.fillMaxWidth(),
+                     verticalAlignment = Alignment.CenterVertically
+                 ) {
++                    // Circular ring showing the percent of the budget used.
+                     BudgetRing(
+                         progress = progress,
+                         label = percent?.let {
+@@ -503,6 +530,7 @@ fun BudgetScreen(
+                     trackColor = colors.sage
+                 )
+ 
++                // Hint shown when no budget has been set for this month.
+                 if (target == null) {
+                     Spacer(Modifier.height(7.dp))
+ 
+@@ -533,6 +561,7 @@ fun BudgetScreen(
+                     fontSize = 20.sp
+                 )
+ 
++                // One row per category: coloured dot, category name, amount spent.
+                 if (categoryTotals.isEmpty()) {
+                     Text(
+                         text = stringResource(R.string.budget_no_expenses),
+@@ -595,6 +624,7 @@ fun BudgetScreen(
+                             colors.sage,
+                             RoundedCornerShape(16.dp)
+                         )
++                        // Fill the editor with the current budget before opening the dialog.
+                         .clickable {
+                             targetInput = target?.let {
+                                 String.format(Locale.US, "%.2f", it)
+@@ -645,6 +675,7 @@ fun BudgetScreen(
+                 modifier = Modifier.weight(1f)
+             )
+ 
++            // Save the switch state right away. BudgetAlertObserver picks up the change and checks the budget.
+             Switch(
+                 checked = alertsEnabled,
+                 onCheckedChange = { enabled ->
+@@ -751,6 +782,7 @@ fun BudgetScreen(
+                     )
+                 }
+             }
++        // Below the limit but at 90% or more: show a yellow warning (only when alerts are on).
+         } else if (alertsEnabled && nearLimit) {
+             Text(
+                 text = stringResource(R.string.budget_warning_used, String.format(Locale.getDefault(), "%.1f", percent ?: 0.0)),
+@@ -795,6 +827,7 @@ fun BudgetScreen(
+ 
+                     OutlinedTextField(
+                         value = targetInput,
++                        // Only accept up to 9 digits before the decimal point and 2 after it.
+                         onValueChange = { value ->
+                             if (
+                                 value.isEmpty() ||
+@@ -840,6 +873,8 @@ fun BudgetScreen(
+             confirmButton = {
+                 Button(
+                     onClick = {
++                        // Validate the amount: must be signed in, a positive number, and not more than this month's income.
++                        // If valid, save it and close the dialog; otherwise show the error message.
+                         val amount = targetInput.toDoubleOrNull()
+                         budgetErrorText = when {
+                             ownerUid.isBlank() ->
+@@ -886,6 +921,7 @@ fun BudgetScreen(
+ }
+ 
+ // Separate white month arrow buttons.
++/** Rounded arrow button used to move one month back or forward. */
+ @Composable
+ private fun MonthArrowButton(
+     previous: Boolean,
+@@ -919,6 +955,12 @@ private fun MonthArrowButton(
+ }
+ 
+ // Circular budget progress indicator.
++/**
++ * Ring chart drawn with Canvas: a grey full circle as the track, and a coloured arc on top
++ * for the used part. The arc starts at the top (-90 degrees) and goes clockwise.
++ * @param progress Fraction of the budget used, from 0 to 1.
++ * @param label Text in the middle, e.g. "67.5%".
++ */
+ @Composable
+ private fun BudgetRing(
+     progress: Float,
+@@ -934,6 +976,7 @@ private fun BudgetRing(
+         Canvas(
+             modifier = Modifier.fillMaxSize()
+         ) {
++            // Leave room for the stroke so the ring isn't cut off at the edges.
+             val stroke = 14.dp.toPx()
+             val diameter = size.minDimension - stroke
+ 
+@@ -987,6 +1030,7 @@ private fun BudgetRing(
+ }
+ 
+ // Compact label/value row.
++/** One "label ...... value" line, e.g. "Total spent $675.00". */
+ @Composable
+ private fun BudgetAmountLine(
+     label: String,
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/dashboard/DashBoardScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/dashboard/DashBoardScreen.kt
+index 1f2a472..067e0a1 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/dashboard/DashBoardScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/dashboard/DashBoardScreen.kt
+@@ -56,9 +56,11 @@ private val balanceNavy = Color(0xFF203846)
+ private val balanceSecondary = Color(0xFFDCE7E2)
+ private val balanceCheck = Color(0xFFA9D2B5)
+ 
++// Placeholder shown instead of amounts when the user hides their numbers.
+ private const val HIDDEN_VALUE = "••••••"
+ 
+ // Currency formatting.
++// Formats an amount as Canadian dollars, e.g. "$1,234.50".
+ private fun dashboardMoney(value: Double): String {
+     return String.format(
+         Locale.CANADA,
+@@ -68,6 +70,7 @@ private fun dashboardMoney(value: Double): String {
+ }
+ 
+ // Date formatting.
++// Short date for the recent list, e.g. "Nov 23". Falls back to the raw string if parsing fails.
+ private fun dashboardDate(date: String): String {
+     return runCatching {
+         LocalDate.parse(date).format(
+@@ -80,6 +83,7 @@ private fun dashboardDate(date: String): String {
+ }
+ 
+ // Category icons for recent transactions.
++// Unknown categories get a generic receipt icon.
+ private fun dashboardIcon(category: String): ImageVector {
+     return when (category.lowercase(Locale.getDefault())) {
+         "food", "groceries", "shopping" ->
+@@ -102,6 +106,15 @@ private fun dashboardIcon(category: String): ImageVector {
+     }
+ }
+ 
++/**
++ * Home screen shown after login. Shows a greeting, the current balance, this month's income
++ * and expenses, how much of this month's income has been spent, and the five latest transactions.
++ * The menu in the top-right corner has dark mode, language and logout.
++ * All numbers are calculated from the transactions list, so they update automatically.
++ * @param transactions All of the signed-in user's transactions.
++ * @param onViewTransactions Switches to the Transactions tab.
++ * @param onTransactionClick Opens the details screen for a transaction.
++ */
+ @Composable
+ fun DashboardScreen(
+     userName: String,
+@@ -118,6 +131,7 @@ fun DashboardScreen(
+         mutableStateOf(true)
+     }
+ 
++    // Dropdown menu (dark mode / language / logout) and language dialog visibility.
+     var showAccountMenu by rememberSaveable {
+         mutableStateOf(false)
+     }
+@@ -133,6 +147,7 @@ fun DashboardScreen(
+ 
+     // CALCULATE MONTHLY TOTALS FROM ROOM TRANSACTIONS
+ 
++    // Keep only transactions dated in the current month.
+     val currentMonth = YearMonth.now()
+ 
+     val monthTransactions = transactions.filter { transaction ->
+@@ -191,14 +206,17 @@ fun DashboardScreen(
+ 
+     // MONTHLY INCOME OVERVIEW
+ 
++    // How much of this month's income is left after expenses.
+     val remainingIncome = monthlyIncome - monthlyExpenses
+ 
++    // Percentage of income spent; null when there is no income (can't divide by zero).
+     val percentSpent = if (monthlyIncome > 0.0) {
+         monthlyExpenses / monthlyIncome * 100.0
+     } else {
+         null
+     }
+ 
++    // Progress bar fill from 0 to 1. Shows full if there are expenses but no income.
+     val progress = when {
+         monthlyIncome > 0.0 ->
+             (monthlyExpenses / monthlyIncome)
+@@ -210,6 +228,7 @@ fun DashboardScreen(
+         else -> 0f
+     }
+ 
++    // Bar colour: red when overspent or no income, warning colour at 80%+, green otherwise.
+     val barColor = when {
+         monthlyIncome <= 0.0 &&
+                 monthlyExpenses > 0.0 ->
+@@ -226,6 +245,7 @@ fun DashboardScreen(
+             accentColor
+     }
+ 
++    // Status sentence under the progress bar.
+     val incomeStatus = when {
+         monthlyIncome == 0.0 &&
+                 monthlyExpenses == 0.0 ->
+@@ -257,6 +277,7 @@ fun DashboardScreen(
+         else -> stringResource(R.string.dashboard_greeting_evening)
+     }
+ 
++    // Fall back to the email when the user has no display name.
+     val displayName = userName.ifBlank {
+         userEmail
+     }
+@@ -312,6 +333,7 @@ fun DashboardScreen(
+                         showAccountMenu = false
+                     }
+                 ) {
++                    // Toggle between light and dark mode.
+                     DropdownMenuItem(
+                         text = {
+                             Text(
+@@ -349,6 +371,7 @@ fun DashboardScreen(
+ 
+                     HorizontalDivider()
+ 
++                    // Opens the language picker dialog.
+                     DropdownMenuItem(
+                         text = { Text(stringResource(R.string.language_label)) },
+                         onClick = {
+@@ -365,6 +388,7 @@ fun DashboardScreen(
+ 
+                     HorizontalDivider()
+ 
++                    // Signs the user out.
+                     DropdownMenuItem(
+                         text = {
+                             Text(stringResource(R.string.action_logout))
+@@ -416,6 +440,7 @@ fun DashboardScreen(
+                         modifier = Modifier.weight(1f)
+                     )
+ 
++                    // Eye button that hides or shows all amounts on the dashboard.
+                     IconButton(
+                         onClick = {
+                             numbersVisible = !numbersVisible
+@@ -558,6 +583,7 @@ fun DashboardScreen(
+ 
+                 Spacer(Modifier.height(13.dp))
+ 
++                // Progress bar of income spent; an empty grey bar is shown while numbers are hidden.
+                 if (numbersVisible) {
+                     LinearProgressIndicator(
+                         progress = { progress },
+@@ -641,6 +667,7 @@ fun DashboardScreen(
+                         )
+                     )
+                 } else {
++                    // List the five most recent transactions with dividers between them; tapping one opens its details.
+                     recentTransactions.forEachIndexed {
+                             index, transaction ->
+ 
+@@ -668,6 +695,7 @@ fun DashboardScreen(
+ 
+ // READ-ONLY MONTHLY SUMMARY CARD
+ // Pencil icons and editing callbacks removed.
++/** Small card showing a label (e.g. "Monthly income") and its value. */
+ @Composable
+ private fun DashboardStatCard(
+     label: String,
+@@ -709,6 +737,7 @@ private fun DashboardStatCard(
+ }
+ 
+ // RECENT TRANSACTION ROW
++/** One row in the recent transactions list: category icon, description, category/date and signed amount. */
+ @Composable
+ private fun DashboardTransactionRow(
+     transaction: SpendTransaction,
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/insights/InsightsScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/insights/InsightsScreen.kt
+index 77f3924..c8caeb3 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/insights/InsightsScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/insights/InsightsScreen.kt
+@@ -68,6 +68,7 @@ private data class InsightsPalette(
+     val highlightIconBackground: Color
+ )
+ 
++/** Returns theme colours in dark mode and the original fixed colours in light mode. */
+ @Composable
+ private fun insightsPalette(): InsightsPalette {
+     val scheme = MaterialTheme.colorScheme
+@@ -98,6 +99,7 @@ private fun insightsPalette(): InsightsPalette {
+ }
+ 
+ // Donut chart category model.
++// One slice of the donut chart: category name, total spent, and slice colour.
+ private data class SpendingSlice(
+     val category: String,
+     val amount: Double,
+@@ -105,6 +107,7 @@ private data class SpendingSlice(
+ )
+ 
+ // Currency formatting.
++// Whole dollars only (e.g. "$1,250") to keep the charts tidy.
+ private fun insightsMoney(value: Double): String {
+     return "$" + String.format(
+         Locale.CANADA,
+@@ -129,10 +132,15 @@ private fun categoryColor(category: String): Color {
+ }
+ 
+ // Calculate chart categories from Room transactions.
++/**
++ * Builds the donut chart slices from this month's expenses: totals per category,
++ * the top four categories get their own slice, and everything else is merged into "Other".
++ */
+ private fun spendingSlices(
+     expenses: List<SpendTransaction>
+ ): List<SpendingSlice> {
+ 
++    // Total per category (blank -> "Other"), dropping zeros, largest first.
+     val totals = expenses
+         .groupBy {
+             it.category.ifBlank { "Other" }
+@@ -193,19 +201,28 @@ private fun spendingSlices(
+     }
+ }
+ 
++/**
++ * Insights screen with spending charts for a selected month: a donut chart of spending
++ * by category with a legend, a bar chart comparing income and expenses, and a short
++ * "month at a glance" summary naming the highest spending category.
++ * @param transactions All of the user's transactions.
++ */
+ @Composable
+ fun InsightsScreen(
+     transactions: List<SpendTransaction>
+ ) {
+     val colors = insightsPalette()
++    // How many months away from the current month is shown (0 = this month).
+     var monthOffset by rememberSaveable {
+         mutableIntStateOf(0)
+     }
+ 
++    // Whether the month dropdown is open.
+     var monthMenuOpen by remember {
+         mutableStateOf(false)
+     }
+ 
++    // Selected month plus its display labels, e.g. "November" and "November 2026".
+     val selectedMonth = YearMonth.now()
+         .plusMonths(monthOffset.toLong())
+ 
+@@ -250,6 +267,7 @@ fun InsightsScreen(
+ 
+     val slices = spendingSlices(expenses)
+ 
++    // Category with the highest total spending this month (null if no expenses).
+     val highestCategory = expenses
+         .groupBy {
+             it.category.ifBlank { "Other" }
+@@ -311,6 +329,7 @@ fun InsightsScreen(
+             modifier = Modifier.fillMaxWidth(),
+             verticalAlignment = Alignment.CenterVertically
+         ) {
++            // Previous month arrow.
+             InsightsMonthButton(
+                 previous = true,
+                 onClick = {
+@@ -319,6 +338,7 @@ fun InsightsScreen(
+                 }
+             )
+ 
++            // Tapping the month name opens a dropdown of months.
+             Box(
+                 modifier = Modifier.weight(1f),
+                 contentAlignment = Alignment.Center
+@@ -367,6 +387,7 @@ fun InsightsScreen(
+                         monthMenuOpen = false
+                     }
+                 ) {
++                    // Offers 12 months back to 3 months ahead, newest first.
+                     (-12..3).reversed().forEach { offset ->
+                         val month = YearMonth.now()
+                             .plusMonths(offset.toLong())
+@@ -391,6 +412,7 @@ fun InsightsScreen(
+                 }
+             }
+ 
++            // Next month arrow.
+             InsightsMonthButton(
+                 previous = false,
+                 onClick = {
+@@ -430,6 +452,7 @@ fun InsightsScreen(
+                 BoxWithConstraints(
+                     modifier = Modifier.fillMaxWidth()
+                 ) {
++                    // BoxWithConstraints tells us the available width, so small screens get a smaller chart and text.
+                     val compact = maxWidth < 340.dp
+ 
+                     val donutSize = (maxWidth * 0.41f)
+@@ -442,6 +465,7 @@ fun InsightsScreen(
+                             if (compact) 7.dp else 12.dp
+                         )
+                     ) {
++                        // Donut chart on the left, legend on the right.
+                         InsightsDonutChart(
+                             slices = slices,
+                             total = totalSpent,
+@@ -574,6 +598,7 @@ fun InsightsScreen(
+ }
+ 
+ // MONTH NAVIGATION BUTTONS
++/** Rounded arrow button used to move one month back or forward. */
+ @Composable
+ private fun InsightsMonthButton(
+     previous: Boolean,
+@@ -607,6 +632,11 @@ private fun InsightsMonthButton(
+ }
+ 
+ // DONUT CHART
++/**
++ * Donut chart drawn on a Canvas. Each slice is an arc whose angle is proportional to its share
++ * of [total]. Starts at the top (-90 degrees) and goes clockwise. The total is printed in the middle.
++ * A full grey ring is drawn when there is no data.
++ */
+ @Composable
+ private fun InsightsDonutChart(
+     slices: List<SpendingSlice>,
+@@ -621,6 +651,7 @@ private fun InsightsDonutChart(
+         Canvas(
+             modifier = Modifier.fillMaxSize()
+         ) {
++            // Inset so the thick stroke stays inside the Canvas bounds.
+             val strokeWidth = 15.dp.toPx()
+             val inset = strokeWidth / 2f + 1.dp.toPx()
+ 
+@@ -638,6 +669,7 @@ private fun InsightsDonutChart(
+                 height = diameter
+             )
+ 
++            // No spending: draw one empty grey ring.
+             if (slices.isEmpty() || total <= 0.0) {
+                 drawArc(
+                     color = insightsPale,
+@@ -654,10 +686,12 @@ private fun InsightsDonutChart(
+                 var startAngle = -90f
+ 
+                 slices.forEach { slice ->
++                    // Slice angle = share of total x 360 degrees.
+                     val sweepAngle = (
+                             slice.amount / total * 360.0
+                             ).toFloat()
+ 
++                    // Small gap between slices so they look separated.
+                     val gap = minOf(
+                         1.1f,
+                         sweepAngle * 0.2f
+@@ -705,6 +739,7 @@ private fun InsightsDonutChart(
+ }
+ 
+ // COMPACT CATEGORY LEGEND
++/** Legend row: colour dot, category name and its percentage of total spending. */
+ @Composable
+ private fun CategoryLegendRow(
+     slice: SpendingSlice,
+@@ -763,6 +798,10 @@ private fun CategoryLegendRow(
+ 
+ // BAR CHART AXIS
+ // Use only whole-thousand increments.
++/**
++ * Picks the top of the bar chart's y-axis, rounded up to the next whole $1,000.
++ * Example: income $1,500 and expenses $800 give an axis max of $2,000.
++ */
+ private fun chartAxisMax(
+     income: Double,
+     expenses: Double
+@@ -788,6 +827,7 @@ private fun chartAxisMax(
+     return upperThousands * 1000
+ }
+ 
++// Axis tick label: "$0", "$1k", "$2k", ...
+ private fun axisLabel(value: Int): String {
+     return if (value == 0) {
+         "\$0"
+@@ -799,6 +839,11 @@ private fun axisLabel(value: Int): String {
+ // INCOME VS EXPENSES BAR CHART
+ // Original solid bars, with gridlines behind them.
+ // No white horizontal lines drawn across the bars.
++/**
++ * Bar chart comparing this month's income and expenses, drawn on a Canvas.
++ * Draws y-axis gridlines with labels, then one bar per value with the amount above
++ * and the label underneath.
++ */
+ @Composable
+ private fun InsightsBarChart(
+     income: Double,
+@@ -813,11 +858,13 @@ private fun InsightsBarChart(
+         expenses = expenses
+     )
+ 
++    // One gridline for every $1,000.
+     val segments = axisMax / 1000
+ 
+     Canvas(
+         modifier = modifier
+     ) {
++        // Chart area inside the Canvas, leaving room for axis labels on the left and bar labels at the bottom.
+         val chartLeft = 43.dp.toPx()
+         val chartRight = size.width - 7.dp.toPx()
+ 
+@@ -827,6 +874,7 @@ private fun InsightsBarChart(
+         val chartWidth = chartRight - chartLeft
+         val chartHeight = chartBottom - chartTop
+ 
++        // Compose's Canvas has no simple text API, so we use Android's native canvas and Paint objects for text.
+         val nativeCanvas = drawContext.canvas.nativeCanvas
+ 
+         val tickPaint = AndroidPaint(
+@@ -902,6 +950,7 @@ private fun InsightsBarChart(
+         )
+ 
+         // Both bars use the same axis and baseline.
++        // Draws one bar. Its height is value / axisMax of the chart height.
+         fun drawBar(
+             value: Double,
+             centerX: Float,
+@@ -918,6 +967,7 @@ private fun InsightsBarChart(
+             val barTop = chartBottom - barHeight
+             val barLeft = centerX - barWidth / 2f
+ 
++            // Draw a rounded rectangle, then a plain rectangle over the bottom half so only the top corners are rounded.
+             if (safeValue > 0.0 && barHeight > 0f) {
+                 val corner = minOf(
+                     11.dp.toPx(),
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/navigation/MainScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/navigation/MainScreen.kt
+index fca114b..e244db7 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/navigation/MainScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/navigation/MainScreen.kt
+@@ -38,8 +38,19 @@ import com.group3.spendwise.TransactionSuccessSound
+ import com.group3.spendwise.data.TransactionRepository
+ import kotlinx.coroutines.launch
+ 
++// Label and icon for one item in the bottom navigation bar.
+ private data class BottomTab(val label: String, val icon: ImageVector)
+ 
++/**
++ * Main container shown after login. Owns the bottom navigation bar, loads the user's
++ * transactions from Room, and switches between the five tabs and the transaction details/edit screens.
++ * Database writes (insert, update, delete) are done here so every screen shares the same logic.
++ * @param userName Display name of the signed-in user.
++ * @param userEmail Email of the signed-in user.
++ * @param onLogout Signs the user out.
++ * @param isDarkMode Current theme setting.
++ * @param onDarkModeChange Called when the user toggles dark mode.
++ */
+ @Composable
+ fun MainScreen(
+     userName: String,
+@@ -50,7 +61,9 @@ fun MainScreen(
+ ) {
+     val context = LocalContext.current
+     val colors = MaterialTheme.colorScheme
++    // Coroutine scope for database calls and snackbars started from click handlers.
+     val scope = rememberCoroutineScope()
++    // Holds the snackbar (short pop-up message at the bottom) state.
+     val snackbarHostState = remember { SnackbarHostState() }
+ 
+     // Preload the short confirmation chime once for this screen.
+@@ -59,6 +72,7 @@ fun MainScreen(
+         onDispose { successSound.release() }
+     }
+ 
++    // Load the signed-in user's transactions. collectAsState recomposes the UI whenever the database changes.
+     val repository = remember(context) { TransactionRepository(context) }
+     val ownerUid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+     val transactionFlow = remember(repository, ownerUid) {
+@@ -66,11 +80,15 @@ fun MainScreen(
+     }
+     val transactions by transactionFlow.collectAsState(initial = emptyList())
+ 
++    // Navigation state, reset when a different user signs in.
++    // Tabs: 0 = Dashboard, 1 = Transactions, 2 = Add, 3 = Budget, 4 = Insights.
++    // transactionRoute is "tabs" (normal tab view), "details" or "edit".
+     var selectedTab by rememberSaveable(ownerUid) { mutableIntStateOf(0) }
+     var transactionRoute by rememberSaveable(ownerUid) { mutableStateOf("tabs") }
+     var selectedTransactionId by rememberSaveable(ownerUid) {
+         mutableStateOf<Long?>(null)
+     }
++    // Look up the selected transaction in the latest list, so details always show up-to-date data.
+     val selectedTransaction = transactions.firstOrNull {
+         it.id == selectedTransactionId
+     }
+@@ -82,6 +100,7 @@ fun MainScreen(
+         budgetTabVisible = selectedTab == 3 && transactionRoute == "tabs"
+     )
+ 
++    // Deletes a transaction, then goes back to the Transactions tab and shows a confirmation.
+     val deleteTransaction: (SpendTransaction) -> Unit = { transaction ->
+         if (ownerUid.isNotBlank()) {
+             scope.launch {
+@@ -102,6 +121,8 @@ fun MainScreen(
+         }
+     }
+ 
++    // Opens the receipt photo in the phone's image viewer app.
++    // FLAG_GRANT_READ_URI_PERMISSION lets that app read our FileProvider URI.
+     val viewReceipt: (SpendTransaction) -> Unit = { transaction ->
+         transaction.receiptUri?.let { uriString ->
+             try {
+@@ -128,6 +149,7 @@ fun MainScreen(
+         BottomTab(stringResource(R.string.nav_insights), Icons.Outlined.Insights)
+     )
+ 
++    // Scaffold gives us the bottom bar and snackbar slots around the screen content.
+     Scaffold(
+         containerColor = colors.background,
+         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+@@ -142,6 +164,7 @@ fun MainScreen(
+                             selectedTab = index
+                         },
+                         icon = {
++                            // The middle "Add" tab gets a highlighted round icon.
+                             if (index == 2) {
+                                 Box(
+                                     modifier = Modifier
+@@ -183,6 +206,7 @@ fun MainScreen(
+                 .fillMaxSize()
+                 .padding(innerPadding)
+         ) {
++            // Decide which screen to show: details/edit screens take priority over the tab content.
+             when {
+                 transactionRoute == "details" && selectedTransaction != null -> {
+                     TransactionDetailsScreen(
+@@ -228,6 +252,7 @@ fun MainScreen(
+                     )
+                 }
+ 
++                // The selected transaction isn't loaded yet (or was deleted): show a fallback with a back button.
+                 transactionRoute != "tabs" -> {
+                     Column(
+                         modifier = Modifier.fillMaxSize(),
+@@ -243,6 +268,7 @@ fun MainScreen(
+                     }
+                 }
+ 
++                // Normal tab content.
+                 else -> when (selectedTab) {
+                     0 -> DashboardScreen(
+                         userName = userName,
+@@ -275,6 +301,7 @@ fun MainScreen(
+                     )
+                     2 -> AddTransactionScreen(
+                         onBack = { selectedTab = 1 },
++                        // Save a new transaction for the signed-in user.
+                         onSave = { newTransaction ->
+                             if (ownerUid.isBlank()) {
+                                 scope.launch {
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/transactions/AddTransactionScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/transactions/AddTransactionScreen.kt
+index 33853fc..a871d70 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/transactions/AddTransactionScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/transactions/AddTransactionScreen.kt
+@@ -80,6 +80,7 @@ import java.time.LocalDate
+ import java.time.format.DateTimeFormatter
+ import java.util.Locale
+ 
++// Form colours. Light mode (white surface) uses the original fixed colours; dark mode uses the theme colours.
+ private val formBackground: Color
+     @Composable get() = if (MaterialTheme.colorScheme.surface == Color.White)
+         Color(0xFFF6F7F4) else MaterialTheme.colorScheme.background
+@@ -102,12 +103,21 @@ private val formRed: Color
+     @Composable get() = if (MaterialTheme.colorScheme.surface == Color.White)
+         Color(0xFFC7554E) else MaterialTheme.colorScheme.error
+ 
++// Category lists shown in the dropdown, depending on income vs expense.
+ private val expenseCategories = TransactionCategories.expenses
+ private val incomeCategories = TransactionCategories.income
+ 
+ private val formSurface: Color
+     @Composable get() = MaterialTheme.colorScheme.surface
+ 
++/**
++ * Form for adding a new transaction or editing an existing one. Includes amount, description,
++ * category, date, notes, a receipt photo (camera or gallery) and an optional voice note.
++ * @param onBack Leaves the form without saving.
++ * @param onSave Called with the filled-in transaction. Saving to Room is done by the caller (MainScreen).
++ * @param transactionToEdit Existing transaction to edit, or null to add a new one.
++ * @param onDelete Deletes the transaction being edited; the button is hidden when null.
++ */
+ @Composable
+ fun AddTransactionScreen(
+     onBack: () -> Unit,
+@@ -118,6 +128,8 @@ fun AddTransactionScreen(
+     val context = LocalContext.current
+     val editing = transactionToEdit != null
+ 
++    // Form fields. Keyed on the transaction ID so the form resets when a different transaction is opened,
++    // and saved with rememberSaveable so input survives rotation. The amount is kept as text while typing.
+     var kind by rememberSaveable(transactionToEdit?.id) {
+         mutableStateOf(transactionToEdit?.kind?.name ?: TransactionKind.EXPENSE.name)
+     }
+@@ -142,19 +154,23 @@ fun AddTransactionScreen(
+     var voiceNotePath by rememberSaveable(transactionToEdit?.id) {
+         mutableStateOf(transactionToEdit?.voiceNotePath)
+     }
++    // Receipt state: the camera URI/file are remembered until the camera returns a result.
+     var showReceiptOptions by rememberSaveable { mutableStateOf(false) }
+     var pendingCameraUri by rememberSaveable { mutableStateOf("") }
+     var pendingCameraFile by rememberSaveable { mutableStateOf("") }
+     var receiptError by rememberSaveable { mutableStateOf("") }
++    // UI flags for the dropdown, validation message and delete dialog.
+     var categoryExpanded by rememberSaveable { mutableStateOf(false) }
+     var attemptedSave by rememberSaveable { mutableStateOf(false) }
+     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+ 
++    // Lets the user pick an existing image (e.g. from the gallery) as the receipt.
+     val receiptPicker = rememberLauncherForActivityResult(
+         contract = ActivityResultContracts.OpenDocument()
+     ) { uri ->
+         if (uri != null) {
+             try {
++                // Ask to keep read access to the image so it can still be opened after an app restart.
+                 context.contentResolver.takePersistableUriPermission(
+                     uri,
+                     Intent.FLAG_GRANT_READ_URI_PERMISSION
+@@ -167,9 +183,11 @@ fun AddTransactionScreen(
+         }
+     }
+ 
++    // Opens the camera app. The photo is written straight into the file we passed it.
+     val cameraLauncher = rememberLauncherForActivityResult(
+         contract = ActivityResultContracts.TakePicture()
+     ) { success ->
++        // Keep the photo if one was taken; otherwise delete the empty placeholder file.
+         if (success && pendingCameraUri.isNotBlank()) {
+             receiptUri = pendingCameraUri
+             receiptError = ""
+@@ -182,6 +200,10 @@ fun AddTransactionScreen(
+         pendingCameraFile = ""
+     }
+ 
++    /**
++     * Creates an empty file in the app's private "receipts" folder, wraps it in a FileProvider
++     * content:// URI (the camera app can't write to our private files directly), and launches the camera.
++     */
+     fun takeReceiptPhoto() {
+         try {
+             val dir = File(context.filesDir, "receipts")
+@@ -204,6 +226,7 @@ fun AddTransactionScreen(
+         }
+     }
+ 
++    // Opens the attached receipt in the phone's image viewer.
+     fun viewReceipt() {
+         val uriString = receiptUri ?: return
+         try {
+@@ -219,9 +242,11 @@ fun AddTransactionScreen(
+         }
+     }
+ 
++    // The Save button only works when the amount is a positive number and description and category are filled in.
+     val numericAmount = amount.toDoubleOrNull()
+     val canSave = numericAmount != null && numericAmount > 0.0 &&
+             description.isNotBlank() && category.isNotBlank()
++    // Show the categories that match the selected type.
+     val categories = if (kind == TransactionKind.INCOME.name) incomeCategories else expenseCategories
+ 
+     Column(
+@@ -231,6 +256,7 @@ fun AddTransactionScreen(
+             .padding(horizontal = 23.dp)
+             .padding(top = 25.dp, bottom = 32.dp)
+     ) {
++        // Header: back button, title (Add or Edit) and currency label.
+         Row(verticalAlignment = Alignment.Top) {
+             IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                 Icon(Icons.Outlined.ArrowBack, stringResource(R.string.action_back), tint = formNavy)
+@@ -253,6 +279,7 @@ fun AddTransactionScreen(
+                 modifier = Modifier.padding(top = 25.dp))
+         }
+ 
++        // Receipt area: tapping it opens a dialog to choose camera or gallery.
+         Spacer(Modifier.height(28.dp))
+         Text(stringResource(R.string.form_receipt_heading), color = formMuted, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+         Spacer(Modifier.height(10.dp))
+@@ -273,6 +300,7 @@ fun AddTransactionScreen(
+                 fontWeight = FontWeight.SemiBold
+             )
+         }
++        // Once a receipt is attached, show View and Remove buttons.
+         if (!receiptUri.isNullOrBlank()) {
+             Row(
+                 verticalAlignment = Alignment.CenterVertically,
+@@ -295,6 +323,7 @@ fun AddTransactionScreen(
+             Text(receiptError, color = formRed, fontSize = 12.sp)
+         }
+ 
++        // Expense / Income toggle. Switching type clears a category that doesn't belong to the new type.
+         Spacer(Modifier.height(18.dp))
+         Row(
+             modifier = Modifier.fillMaxWidth()
+@@ -327,6 +356,7 @@ fun AddTransactionScreen(
+             color = formMuted,
+             modifier = Modifier.align(Alignment.CenterHorizontally)
+         )
++        // Large amount input centred on the screen.
+         Spacer(Modifier.height(7.dp))
+         Row(
+             modifier = Modifier.fillMaxWidth(),
+@@ -337,6 +367,7 @@ fun AddTransactionScreen(
+             BasicTextField(
+                 value = amount,
+                 onValueChange = { entered ->
++                    // Only accept up to 9 digits before the decimal point and 2 after it.
+                     if (entered.isEmpty() || entered.matches(Regex("\\d{0,9}(\\.\\d{0,2})?"))) {
+                         amount = entered
+                     }
+@@ -346,6 +377,7 @@ fun AddTransactionScreen(
+                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                 cursorBrush = SolidColor(formGreen),
+                 textStyle = TextStyle(color = formNavy, fontSize = 51.sp, textAlign = TextAlign.Center),
++                // Shows a "0.00" placeholder while the field is empty.
+                 decorationBox = { inner ->
+                     Box(contentAlignment = Alignment.Center) {
+                         if (amount.isEmpty()) {
+@@ -370,6 +402,7 @@ fun AddTransactionScreen(
+         )
+ 
+         Spacer(Modifier.height(13.dp))
++        // Category dropdown and date picker side by side.
+         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+             Box(modifier = Modifier.weight(1f)) {
+                 Row(
+@@ -406,6 +439,7 @@ fun AddTransactionScreen(
+             Row(
+                 modifier = Modifier.weight(1f)
+                     .background(formSurface, RoundedCornerShape(16.dp))
++                    // Opens Android's date picker. Its months are 0-based, while LocalDate's are 1-based, so we adjust by 1.
+                     .clickable {
+                         val current = runCatching { LocalDate.parse(date) }.getOrElse { LocalDate.now() }
+                         DatePickerDialog(
+@@ -448,6 +482,7 @@ fun AddTransactionScreen(
+             onVoiceNotePathChange = { newPath -> voiceNotePath = newPath }
+         )
+ 
++        // Only show the "required fields" error after the user has tried to save once.
+         if (attemptedSave && !canSave) {
+             Spacer(Modifier.height(12.dp))
+             Text(stringResource(R.string.form_required_error), color = formRed, fontSize = 13.sp)
+@@ -458,6 +493,7 @@ fun AddTransactionScreen(
+             onClick = {
+                 attemptedSave = true
+                 if (canSave) {
++                    // Build the transaction from the form. Editing keeps the original ID; a new transaction uses 0.
+                     onSave(
+                         SpendTransaction(
+                             id = transactionToEdit?.id ?: 0L,
+@@ -490,6 +526,7 @@ fun AddTransactionScreen(
+         }
+     }
+ 
++    // Dialog that asks whether to take a new photo or choose one from the gallery.
+     if (showReceiptOptions) {
+         AlertDialog(
+             onDismissRequest = { showReceiptOptions = false },
+@@ -515,6 +552,7 @@ fun AddTransactionScreen(
+         )
+     }
+ 
++    // Confirmation dialog before deleting while editing.
+     if (confirmDelete) {
+         AlertDialog(
+             onDismissRequest = { confirmDelete = false },
+@@ -536,6 +574,7 @@ fun AddTransactionScreen(
+ 
+ 
+ // Notes field without a separate label.
++/** Multi-line notes input (2 to 3 lines) with a placeholder and a notes icon. */
+ @Composable
+ private fun NotesInputField(
+     notes: String,
+@@ -590,6 +629,7 @@ private fun NotesInputField(
+     }
+ }
+ 
++/** One half of the Expense/Income toggle; the selected option gets a white background. */
+ @Composable
+ private fun KindOption(
+     text: String,
+@@ -613,6 +653,7 @@ private fun KindOption(
+     }
+ }
+ 
++/** Outlined text field colours matching the form's palette. */
+ @Composable
+ private fun softInputColors() = OutlinedTextFieldDefaults.colors(
+     focusedContainerColor = formSurface,
+@@ -628,6 +669,7 @@ private fun softInputColors() = OutlinedTextFieldDefaults.colors(
+     cursorColor = formGreen
+ )
+ 
++// Shows the stored yyyy-MM-dd date as e.g. "Nov 23, 2026".
+ private fun displayFormDate(value: String): String = runCatching {
+     LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault()))
+ }.getOrElse { value }
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/transactions/TransactionDetailsScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/transactions/TransactionDetailsScreen.kt
+index 1f86929..67c4624 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/transactions/TransactionDetailsScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/transactions/TransactionDetailsScreen.kt
+@@ -79,9 +79,11 @@ private data class DetailsPalette(
+     val buttonText: Color
+ )
+ 
++/** Picks the details screen colours: fixed light colours in light mode, theme colours in dark mode. */
+ @Composable
+ private fun detailsPalette(): DetailsPalette {
+     val scheme = MaterialTheme.colorScheme
++    // A dark background has low luminance (brightness), so this tells us if dark mode is on.
+     val isDark = scheme.background.luminance() < 0.5f
+ 
+     return if (isDark) {
+@@ -115,6 +117,14 @@ private fun detailsPalette(): DetailsPalette {
+     }
+ }
+ 
++/**
++ * Read-only view of one transaction: amount summary, info, notes, receipt link and voice note player.
++ * @param transaction The transaction to display.
++ * @param onBack Returns to the Transactions list.
++ * @param onEdit Opens this transaction in the edit form.
++ * @param onDelete Deletes this transaction.
++ * @param onViewReceipt Opens the receipt photo in an image viewer.
++ */
+ @Composable
+ fun TransactionDetailsScreen(
+     transaction: SpendTransaction,
+@@ -125,6 +135,7 @@ fun TransactionDetailsScreen(
+ ) {
+     val context = LocalContext.current
+     val colors = detailsPalette()
++    // A new player is created for each transaction (keyed on transaction.id).
+     val audioPlayer = remember(context, transaction.id) {
+         VoiceNoteRecorder(context)
+     }
+@@ -136,9 +147,11 @@ fun TransactionDetailsScreen(
+         onDispose { audioPlayer.release() }
+     }
+ 
++    // Format the amount with a sign: "-$" for expenses and "+$" for income.
+     val isExpense = transaction.kind == TransactionKind.EXPENSE
+     val formattedAmount = String.format(Locale.CANADA, "%,.2f", transaction.amount)
+     val amountText = if (isExpense) "-$$formattedAmount" else "+$$formattedAmount"
++    // Show the date as e.g. "November 23, 2026"; fall back to the raw text if it can't be parsed.
+     val formattedDate = remember(transaction.date, Locale.getDefault()) {
+         runCatching {
+             LocalDate.parse(transaction.date).format(
+@@ -146,6 +159,7 @@ fun TransactionDetailsScreen(
+             )
+         }.getOrElse { transaction.date }
+     }
++    // Treat a blank path the same as no voice note.
+     val voicePath = transaction.voiceNotePath?.takeIf { it.isNotBlank() }
+     val hasVoiceNote = voicePath != null
+ 
+@@ -157,6 +171,7 @@ fun TransactionDetailsScreen(
+             .padding(horizontal = 22.dp)
+             .padding(top = 12.dp, bottom = 25.dp)
+     ) {
++        // Top bar: back arrow and screen title.
+         Row(
+             verticalAlignment = Alignment.CenterVertically,
+             modifier = Modifier.fillMaxWidth()
+@@ -226,6 +241,7 @@ fun TransactionDetailsScreen(
+ 
+         Spacer(Modifier.height(9.dp))
+ 
++        // General information card.
+         DetailsCard {
+             Text(
+                 stringResource(R.string.details_info),
+@@ -279,6 +295,7 @@ fun TransactionDetailsScreen(
+                 )
+             }
+             Spacer(Modifier.height(8.dp))
++            // Show a "View receipt" link only when a photo is attached.
+             if (transaction.receiptUri.isNullOrBlank()) {
+                 Text(stringResource(R.string.details_no_receipt), color = colors.muted, fontSize = 12.sp)
+             } else {
+@@ -320,6 +337,7 @@ fun TransactionDetailsScreen(
+                     color = colors.muted
+                 )
+             } else {
++                // Play/Stop toggle for the voice note.
+                 OutlinedButton(
+                     onClick = {
+                         if (isPlaying) {
+@@ -328,6 +346,7 @@ fun TransactionDetailsScreen(
+                             playbackError = ""
+                         } else {
+                             try {
++                                // The file could have been deleted from storage, so check before playing.
+                                 val file = File(voicePath!!)
+                                 if (!file.exists()) {
+                                     playbackError = context.getString(R.string.details_missing_recording)
+@@ -371,6 +390,7 @@ fun TransactionDetailsScreen(
+ 
+         Spacer(Modifier.height(11.dp))
+ 
++        // Edit and Delete buttons. Audio is stopped first so it doesn't keep playing after leaving.
+         Row(
+             modifier = Modifier.fillMaxWidth(),
+             horizontalArrangement = Arrangement.spacedBy(9.dp)
+@@ -409,6 +429,7 @@ fun TransactionDetailsScreen(
+     }
+ }
+ 
++/** White rounded card used for each section on this screen. */
+ @Composable
+ private fun DetailsCard(content: @Composable ColumnScope.() -> Unit) {
+     val colors = detailsPalette()
+@@ -421,6 +442,7 @@ private fun DetailsCard(content: @Composable ColumnScope.() -> Unit) {
+     )
+ }
+ 
++/** One "label: value" row inside the info card. */
+ @Composable
+ private fun InfoRow(label: String, value: String) {
+     val colors = detailsPalette()
+diff --git a/app/src/main/java/com/group3/spendwise/ui/screens/transactions/TransactionsScreen.kt b/app/src/main/java/com/group3/spendwise/ui/screens/transactions/TransactionsScreen.kt
+index c9534ab..a5161d1 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/screens/transactions/TransactionsScreen.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/screens/transactions/TransactionsScreen.kt
+@@ -88,6 +88,7 @@ private data class TransactionsPalette(
+     val selectedTabText: Color
+ )
+ 
++/** Returns theme colours in dark mode and the original fixed colours in light mode. */
+ @Composable
+ private fun transactionsPalette(): TransactionsPalette {
+     val scheme = MaterialTheme.colorScheme
+@@ -122,9 +123,22 @@ private fun transactionsPalette(): TransactionsPalette {
+     }
+ }
+ 
++// Type filter tabs at the top of the list.
+ private enum class TransactionFilter { ALL, INCOME, EXPENSES }
++// Special value meaning "no category filter"; can't clash with a real category name.
+ private const val ALL_CATEGORIES = "__all_categories__"
+ 
++/**
++ * Transaction history screen: monthly income/expense totals, filter tabs
++ * (All / Income / Expenses), a category dropdown, and the list grouped by date.
++ * The action callbacks are nullable; passing null hides that button on each row.
++ * @param transactions All of the user's transactions.
++ * @param onAddClick Opens the Add Transaction tab (used by the empty state).
++ * @param onTransactionClick Opens the details screen.
++ * @param onEditClick Opens the edit form.
++ * @param onDeleteClick Deletes after the user confirms in a dialog.
++ * @param onReceiptClick Opens the receipt photo.
++ */
+ @Composable
+ fun TransactionsScreen(
+     transactions: List<SpendTransaction> = emptyList(),
+@@ -135,9 +149,11 @@ fun TransactionsScreen(
+     onReceiptClick: ((SpendTransaction) -> Unit)? = null
+ ) {
+     val colors = transactionsPalette()
++    // Filter state. The enum is saved by name because rememberSaveable can store Strings directly.
+     var filter by rememberSaveable { mutableStateOf(TransactionFilter.ALL.name) }
+     var category by rememberSaveable { mutableStateOf(ALL_CATEGORIES) }
+     var categoriesExpanded by rememberSaveable { mutableStateOf(false) }
++    // ID of the transaction waiting for delete confirmation (null = no dialog).
+     var pendingDelete by rememberSaveable { mutableStateOf<Long?>(null) }
+ 
+     // A single player is shared across the list so only one note plays at a time.
+@@ -149,6 +165,7 @@ fun TransactionsScreen(
+         onDispose { audioPlayer.release() }
+     }
+ 
++    // Plays the row's voice note, or stops it if that row is already playing.
+     val toggleVoiceNote: (SpendTransaction) -> Unit = { transaction ->
+         val path = transaction.voiceNotePath
+         if (!path.isNullOrBlank()) {
+@@ -173,13 +190,16 @@ fun TransactionsScreen(
+         }
+     }
+ 
++    // Totals for the current month only.
+     val now = YearMonth.now()
+     val monthTransactions = transactions.filter { transaction ->
+         runCatching { YearMonth.from(LocalDate.parse(transaction.date)) }.getOrNull() == now
+     }
+     val monthlyIncome = monthTransactions.filter { it.kind == TransactionKind.INCOME }.sumOf { it.amount }
+     val monthlyExpenses = monthTransactions.filter { it.kind == TransactionKind.EXPENSE }.sumOf { it.amount }
++    // Categories that actually appear in the user's data, for the dropdown.
+     val allCategories = transactions.map { it.category }.filter { it.isNotBlank() }.distinct().sorted()
++    // Apply the type and category filters, then sort newest first.
+     val shownTransactions = transactions
+         .filter { transaction ->
+             val matchesType = when (filter) {
+@@ -195,8 +215,10 @@ fun TransactionsScreen(
+                     )
+         }
+         .sortedWith(compareByDescending<SpendTransaction> { it.date }.thenByDescending { it.id })
++    // Group by date so each day gets its own header in the list.
+     val grouped = shownTransactions.groupBy { it.date }.entries.toList()
+ 
++    // LazyColumn only builds the rows that are visible, which keeps long lists smooth.
+     LazyColumn(
+         modifier = Modifier.fillMaxSize().background(colors.background),
+         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp),
+@@ -217,6 +239,7 @@ fun TransactionsScreen(
+             }
+         }
+ 
++        // Monthly income and expense summary cards.
+         item {
+             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                 MonthlySummaryCard(
+@@ -230,6 +253,7 @@ fun TransactionsScreen(
+             }
+         }
+ 
++        // All / Income / Expenses filter tabs.
+         item {
+             HorizontalDivider(color = colors.accent, thickness = 1.dp)
+             Spacer(Modifier.height(6.dp))
+@@ -297,6 +321,7 @@ fun TransactionsScreen(
+             }
+         }
+ 
++        // Empty state when nothing matches, otherwise the grouped list.
+         item {
+             if (shownTransactions.isEmpty()) {
+                 Column(
+@@ -319,6 +344,7 @@ fun TransactionsScreen(
+                         .background(colors.surface, RoundedCornerShape(26.dp))
+                         .padding(horizontal = 16.dp, vertical = 12.dp)
+                 ) {
++                    // One date header followed by that day's transactions.
+                     grouped.forEachIndexed { groupIndex, entry ->
+                         if (groupIndex > 0) Spacer(Modifier.height(4.dp))
+                         Text(
+@@ -341,6 +367,7 @@ fun TransactionsScreen(
+                                 allowDelete = onDeleteClick != null,
+                                 allowReceipt = onReceiptClick != null
+                             )
++                            // Thin divider between rows; a coloured one marks the end of a date group.
+                             if (index != entry.value.lastIndex || groupIndex != grouped.lastIndex) {
+                                 HorizontalDivider(
+                                     color = if (index == entry.value.lastIndex) {
+@@ -359,6 +386,7 @@ fun TransactionsScreen(
+         }
+     }
+ 
++    // Confirmation dialog shown before deleting a transaction.
+     val toDelete = transactions.firstOrNull { it.id == pendingDelete }
+     if (toDelete != null) {
+         AlertDialog(
+@@ -379,6 +407,7 @@ fun TransactionsScreen(
+     }
+ }
+ 
++/** Small card showing a monthly total; [positive] picks the income (down arrow) or expense (up arrow) style. */
+ @Composable
+ private fun MonthlySummaryCard(title: String, amount: Double, positive: Boolean, modifier: Modifier = Modifier) {
+     val colors = transactionsPalette()
+@@ -407,6 +436,10 @@ private fun MonthlySummaryCard(title: String, amount: Double, positive: Boolean,
+     }
+ }
+ 
++/**
++ * One transaction in the list: category icon, description, category/date and signed amount.
++ * Below it are Edit/Delete actions and, when available, View receipt and Play voice note links.
++ */
+ @Composable
+ private fun TransactionRow(
+     transaction: SpendTransaction,
+@@ -459,6 +492,7 @@ private fun TransactionRow(
+                 maxLines = 1
+             )
+         }
++        // Edit and Delete actions, shown only if the parent passed those callbacks.
+         Row(modifier = Modifier.padding(start = 56.dp, top = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+             if (allowEdit) {
+                 Row(
+@@ -481,6 +515,7 @@ private fun TransactionRow(
+                 }
+             }
+         }
++        // "View receipt" link, only when a photo is attached.
+         if (!transaction.receiptUri.isNullOrBlank() && allowReceipt) {
+             Row(
+                 modifier = Modifier
+@@ -530,16 +565,20 @@ private fun TransactionRow(
+     }
+ }
+ 
++// Formats an amount as Canadian dollars, e.g. "$1,234.50".
+ private fun money(amount: Double): String = "$" + String.format(Locale.CANADA, "%,.2f", amount)
+ 
++// Date header format, e.g. "November 23". Falls back to the raw text if parsing fails.
+ private fun displayGroupDate(value: String): String = runCatching {
+     LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMMM d", Locale.getDefault()))
+ }.getOrElse { value }
+ 
++// Short date for each row, e.g. "Nov 23".
+ private fun displayShortDate(value: String): String = runCatching {
+     LocalDate.parse(value).format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
+ }.getOrElse { value }
+ 
++// Chooses an icon for a category; unknown categories get a generic "more" icon.
+ private fun categoryIcon(category: String): ImageVector = when (category.lowercase(Locale.getDefault())) {
+     "food", "groceries", "shopping" -> Icons.Outlined.ShoppingBasket
+     "coffee" -> Icons.Outlined.Coffee
+diff --git a/app/src/main/java/com/group3/spendwise/ui/theme/Color.kt b/app/src/main/java/com/group3/spendwise/ui/theme/Color.kt
+index 8c77887..09754d8 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/theme/Color.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/theme/Color.kt
+@@ -2,10 +2,12 @@ package com.group3.spendwise.ui.theme
+ 
+ import androidx.compose.ui.graphics.Color
+ 
++// Lighter tones used by the dark colour scheme.
+ val Purple80 = Color(0xFFD0BCFF)
+ val PurpleGrey80 = Color(0xFFCCC2DC)
+ val Pink80 = Color(0xFFEFB8C8)
+ 
++// Darker tones used by the light colour scheme.
+ val Purple40 = Color(0xFF6650a4)
+ val PurpleGrey40 = Color(0xFF625b71)
+ val Pink40 = Color(0xFF7D5260)
+\ No newline at end of file
+diff --git a/app/src/main/java/com/group3/spendwise/ui/theme/Theme.kt b/app/src/main/java/com/group3/spendwise/ui/theme/Theme.kt
+index 5ae6683..db32813 100644
+--- a/app/src/main/java/com/group3/spendwise/ui/theme/Theme.kt
++++ b/app/src/main/java/com/group3/spendwise/ui/theme/Theme.kt
+@@ -67,6 +67,7 @@ private val LightColors = lightColorScheme(
+     onErrorContainer = Color(0xFF410002)
+ )
+ 
++// Dark mode palette: same roles as LightColors, with lighter text on dark green/navy surfaces.
+ private val DarkColors = darkColorScheme(
+     primary = Color(0xFFADD3BD),
+     onPrimary = Color(0xFF183229),
+@@ -118,6 +119,12 @@ private val SpendShapes = Shapes(
+     extraSmall = RoundedCornerShape(16.dp)
+ )
+ 
++/**
++ * Root theme for the whole app. Wrap all UI in this so every Material component
++ * uses the SpendWise colours and shapes.
++ * @param darkTheme true to use the dark colour scheme.
++ * @param content The UI to display inside the theme.
++ */
+ @Composable
+ fun SpendWiseTheme(
+     darkTheme: Boolean = false,
+-- 
+2.43.0
+
