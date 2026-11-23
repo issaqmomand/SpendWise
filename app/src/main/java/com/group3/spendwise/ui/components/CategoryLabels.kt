@@ -6,10 +6,16 @@ import com.group3.spendwise.R
 
 /** Persist original category IDs/English labels; translate only what the user sees. */
 object TransactionCategories {
+    // Categories offered when adding an expense.
     val expenses = listOf("Food", "Transportation", "Shopping", "Entertainment", "School", "Housing", "Subscriptions", "Other")
+    // Categories offered when adding income.
     val income = listOf("Salary", "Gift", "Refund", "Other")
 }
 
+/**
+ * Converts a stored category ID (e.g. "Food") into the translated label for the current language.
+ * Use this only for display; never save the returned text to the database.
+ */
 @Composable
 fun localizedCategory(value: String): String = when (value.lowercase(java.util.Locale.ROOT)) {
     "food" -> stringResource(R.string.category_food)

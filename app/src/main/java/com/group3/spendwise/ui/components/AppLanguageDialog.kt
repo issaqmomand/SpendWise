@@ -32,14 +32,17 @@ import com.group3.spendwise.ui.settings.AppLanguageManager
 @Composable
 fun AppLanguageDialog(onDismiss: () -> Unit) {
     // Keep these choices local to this composable to avoid duplicate type declarations.
+    // Each pair is (language tag, label string). An empty tag means "use the device language".
     val languageChoices = listOf(
         "" to R.string.language_system,
         "en" to R.string.language_english,
         "fr" to R.string.language_french
     )
+    // Work out which option is currently active so it can be shown on the button.
     val selectedTag = AppLanguageManager.selectedLanguageTag()
     val selectedLabelId = languageChoices.firstOrNull { it.first == selectedTag }
         ?.second ?: R.string.language_system
+    // Controls whether the dropdown list is open.
     var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -53,6 +56,7 @@ fun AppLanguageDialog(onDismiss: () -> Unit) {
                 )
                 Spacer(Modifier.height(16.dp))
                 Box(modifier = Modifier.fillMaxWidth()) {
+                    // Button showing the current language; tapping it opens the dropdown.
                     OutlinedButton(
                         onClick = { expanded = true },
                         modifier = Modifier.fillMaxWidth()
@@ -70,12 +74,14 @@ fun AppLanguageDialog(onDismiss: () -> Unit) {
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
+                        // One menu row per language, with a check mark next to the active one.
                         languageChoices.forEach { (tag, labelId) ->
                             DropdownMenuItem(
                                 text = { Text(stringResource(labelId)) },
                                 onClick = {
                                     expanded = false
                                     onDismiss()
+                                    // Only switch if the user picked a different language (switching recreates the activity).
                                     if (tag != selectedTag) {
                                         AppLanguageManager.selectLanguage(tag)
                                     }

@@ -56,9 +56,11 @@ private val balanceNavy = Color(0xFF203846)
 private val balanceSecondary = Color(0xFFDCE7E2)
 private val balanceCheck = Color(0xFFA9D2B5)
 
+// Placeholder shown instead of amounts when the user hides their numbers.
 private const val HIDDEN_VALUE = "••••••"
 
 // Currency formatting.
+// Formats an amount as Canadian dollars, e.g. "$1,234.50".
 private fun dashboardMoney(value: Double): String {
     return String.format(
         Locale.CANADA,
@@ -68,6 +70,7 @@ private fun dashboardMoney(value: Double): String {
 }
 
 // Date formatting.
+// Short date for the recent list, e.g. "Nov 23". Falls back to the raw string if parsing fails.
 private fun dashboardDate(date: String): String {
     return runCatching {
         LocalDate.parse(date).format(
@@ -80,6 +83,7 @@ private fun dashboardDate(date: String): String {
 }
 
 // Category icons for recent transactions.
+// Unknown categories get a generic receipt icon.
 private fun dashboardIcon(category: String): ImageVector {
     return when (category.lowercase(Locale.getDefault())) {
         "food", "groceries", "shopping" ->
@@ -102,6 +106,15 @@ private fun dashboardIcon(category: String): ImageVector {
     }
 }
 
+/**
+ * Home screen shown after login. Shows a greeting, the current balance, this month's income
+ * and expenses, how much of this month's income has been spent, and the five latest transactions.
+ * The menu in the top-right corner has dark mode, language and logout.
+ * All numbers are calculated from the transactions list, so they update automatically.
+ * @param transactions All of the signed-in user's transactions.
+ * @param onViewTransactions Switches to the Transactions tab.
+ * @param onTransactionClick Opens the details screen for a transaction.
+ */
 @Composable
 fun DashboardScreen(
     userName: String,
@@ -118,6 +131,7 @@ fun DashboardScreen(
         mutableStateOf(true)
     }
 
+    // Dropdown menu (dark mode / language / logout) and language dialog visibility.
     var showAccountMenu by rememberSaveable {
         mutableStateOf(false)
     }
@@ -133,6 +147,7 @@ fun DashboardScreen(
 
     // CALCULATE MONTHLY TOTALS FROM ROOM TRANSACTIONS
 
+    // Keep only transactions dated in the current month.
     val currentMonth = YearMonth.now()
 
     val monthTransactions = transactions.filter { transaction ->
@@ -191,14 +206,17 @@ fun DashboardScreen(
 
     // MONTHLY INCOME OVERVIEW
 
+    // How much of this month's income is left after expenses.
     val remainingIncome = monthlyIncome - monthlyExpenses
 
+    // Percentage of income spent; null when there is no income (can't divide by zero).
     val percentSpent = if (monthlyIncome > 0.0) {
         monthlyExpenses / monthlyIncome * 100.0
     } else {
         null
     }
 
+    // Progress bar fill from 0 to 1. Shows full if there are expenses but no income.
     val progress = when {
         monthlyIncome > 0.0 ->
             (monthlyExpenses / monthlyIncome)
@@ -210,6 +228,7 @@ fun DashboardScreen(
         else -> 0f
     }
 
+    // Bar colour: red when overspent or no income, warning colour at 80%+, green otherwise.
     val barColor = when {
         monthlyIncome <= 0.0 &&
                 monthlyExpenses > 0.0 ->
@@ -226,6 +245,7 @@ fun DashboardScreen(
             accentColor
     }
 
+    // Status sentence under the progress bar.
     val incomeStatus = when {
         monthlyIncome == 0.0 &&
                 monthlyExpenses == 0.0 ->
@@ -257,6 +277,7 @@ fun DashboardScreen(
         else -> stringResource(R.string.dashboard_greeting_evening)
     }
 
+    // Fall back to the email when the user has no display name.
     val displayName = userName.ifBlank {
         userEmail
     }
@@ -312,6 +333,7 @@ fun DashboardScreen(
                         showAccountMenu = false
                     }
                 ) {
+                    // Toggle between light and dark mode.
                     DropdownMenuItem(
                         text = {
                             Text(
@@ -349,6 +371,7 @@ fun DashboardScreen(
 
                     HorizontalDivider()
 
+                    // Opens the language picker dialog.
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.language_label)) },
                         onClick = {
@@ -365,6 +388,7 @@ fun DashboardScreen(
 
                     HorizontalDivider()
 
+                    // Signs the user out.
                     DropdownMenuItem(
                         text = {
                             Text(stringResource(R.string.action_logout))
@@ -416,6 +440,7 @@ fun DashboardScreen(
                         modifier = Modifier.weight(1f)
                     )
 
+                    // Eye button that hides or shows all amounts on the dashboard.
                     IconButton(
                         onClick = {
                             numbersVisible = !numbersVisible
@@ -558,6 +583,7 @@ fun DashboardScreen(
 
                 Spacer(Modifier.height(13.dp))
 
+                // Progress bar of income spent; an empty grey bar is shown while numbers are hidden.
                 if (numbersVisible) {
                     LinearProgressIndicator(
                         progress = { progress },
@@ -641,6 +667,7 @@ fun DashboardScreen(
                         )
                     )
                 } else {
+                    // List the five most recent transactions with dividers between them; tapping one opens its details.
                     recentTransactions.forEachIndexed {
                             index, transaction ->
 
@@ -668,6 +695,7 @@ fun DashboardScreen(
 
 // READ-ONLY MONTHLY SUMMARY CARD
 // Pencil icons and editing callbacks removed.
+/** Small card showing a label (e.g. "Monthly income") and its value. */
 @Composable
 private fun DashboardStatCard(
     label: String,
@@ -709,6 +737,7 @@ private fun DashboardStatCard(
 }
 
 // RECENT TRANSACTION ROW
+/** One row in the recent transactions list: category icon, description, category/date and signed amount. */
 @Composable
 private fun DashboardTransactionRow(
     transaction: SpendTransaction,

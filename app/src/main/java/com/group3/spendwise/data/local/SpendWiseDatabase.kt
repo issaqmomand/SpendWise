@@ -20,6 +20,11 @@ import kotlinx.coroutines.flow.Flow
     tableName = "transactions",
     indices = [Index(value = ["ownerUid"])]
 )
+/**
+ * One row in the "transactions" table. The index on ownerUid keeps per-user queries fast.
+ * [kind] is stored as the enum name ("INCOME"/"EXPENSE") and [date] as yyyy-MM-dd text,
+ * so sorting by date as a string still gives the correct chronological order.
+ */
 data class TransactionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
@@ -36,9 +41,11 @@ data class TransactionEntity(
     val voiceNotePath: String? = null
 )
 
+/** Data Access Object: all SQL queries for the transactions table. */
 @Dao
 interface TransactionDao {
 
+    // Returns a live stream of the user's transactions, newest first. Room re-emits whenever the table changes.
     @Query(
         """
         SELECT * FROM transactions
@@ -56,6 +63,7 @@ interface TransactionDao {
         transaction: TransactionEntity
     ): Long
 
+    // Deletes a transaction only when it belongs to the given user, so one user can't delete another's data.
     @Query(
         """
         DELETE FROM transactions
@@ -125,6 +133,10 @@ interface TransactionDao {
     ): Int
 }
 
+/**
+ * Room database for the app. Bump [version] and add a Migration whenever the schema changes.
+ * Use [getInstance] instead of building the database directly.
+ */
 @Database(
     entities = [TransactionEntity::class],
     version = 2,
@@ -136,6 +148,7 @@ abstract class SpendWiseDatabase : RoomDatabase() {
 
     companion object {
 
+        // @Volatile makes the latest INSTANCE value visible to all threads immediately.
         @Volatile
         private var INSTANCE: SpendWiseDatabase? = null
 
@@ -154,6 +167,10 @@ abstract class SpendWiseDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Returns the single shared database instance (singleton). The synchronized block
+         * makes sure two threads can't create two databases at the same time.
+         */
         fun getInstance(
             context: Context
         ): SpendWiseDatabase {

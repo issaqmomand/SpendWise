@@ -25,8 +25,10 @@ import kotlin.math.roundToLong
 // Sends budget alerts when spending or the budget changes.
 class BudgetNotificationManager(context: Context) {
 
+    // Use the application context so this class never holds on to a screen/Activity.
     private val appContext = context.applicationContext
 
+    // Remembers the last alert level per user and month, so we don't send the same alert twice.
     private val preferences = appContext.getSharedPreferences(
         "spendwise_budget_notifications",
         Context.MODE_PRIVATE
@@ -36,9 +38,11 @@ class BudgetNotificationManager(context: Context) {
         NotificationManagerCompat.from(appContext)
 
     companion object {
+        // Notification channel ID (required on Android 8.0+).
         private const val CHANNEL_ID = "spendwise_budget_alerts"
 
 
+        // Alert levels, in increasing order so they can be compared with > and <.
         private const val BELOW_WARNING = 0
         private const val WARNING_90 = 1
         private const val EXCEEDED_100 = 2
@@ -48,6 +52,7 @@ class BudgetNotificationManager(context: Context) {
         createNotificationChannel()
     }
 
+    // Android 8.0 (API 26) and newer require a channel before any notification can be shown.
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
 
@@ -69,6 +74,16 @@ class BudgetNotificationManager(context: Context) {
     }
 
     // Called when budget settings or transaction totals change.
+    /**
+     * Decides whether to send a "close to budget" (90%) or "over budget" (100%) notification.
+     * Alerts are only sent when something meaningful changes: a higher level is reached,
+     * the budget amount changes, or spending goes up while already over budget.
+     * @param ownerUid Signed-in user's ID, so each user has separate alert history.
+     * @param monthKey Month being checked, in yyyy-MM format.
+     * @param monthlyBudget Budget set for that month.
+     * @param monthlyExpenses Total expenses recorded for that month.
+     * @param alertsEnabled The user's setting for budget alerts.
+     */
     fun checkBudget(
         ownerUid: String,
         monthKey: String,
@@ -76,11 +91,13 @@ class BudgetNotificationManager(context: Context) {
         monthlyExpenses: Double,
         alertsEnabled: Boolean
     ) {
+        // Skip if alerts are off, the input is invalid, or we are not allowed to post notifications.
         if (!alertsEnabled || ownerUid.isBlank()) return
         if (!monthlyBudget.isFinite() || monthlyBudget <= 0.0) return
         if (!monthlyExpenses.isFinite()) return
         if (!hasNotificationPermission()) return
 
+        // All saved keys start with user + month so every month starts fresh.
         val keyPrefix = "${ownerUid}_${monthKey}"
 
         // Compare currency values to the nearest cent.
@@ -149,10 +166,12 @@ class BudgetNotificationManager(context: Context) {
                                     increasedWhileOverBudget
                             )
 
+        // Only set if a notification was actually posted.
         var nextNotificationId: Int? = null
 
         if (shouldNotify) {
 
+            // Format the month name (e.g. "November 2026") in the user's language; fall back to the raw key.
             val displayMonth = runCatching {
                 YearMonth.parse(monthKey).format(
                     DateTimeFormatter.ofPattern(
@@ -162,6 +181,7 @@ class BudgetNotificationManager(context: Context) {
                 )
             }.getOrDefault(monthKey)
 
+            // Amounts are shown in Canadian dollars using the device locale's formatting.
             val currency = NumberFormat.getCurrencyInstance(
                 appContext.resources.configuration.locales[0]
             ).apply {
@@ -217,6 +237,7 @@ class BudgetNotificationManager(context: Context) {
         }.apply()
     }
 
+    /** Returns true if notifications are enabled and, on Android 13+, the POST_NOTIFICATIONS permission is granted. */
     private fun hasNotificationPermission(): Boolean {
         if (!notificationManager.areNotificationsEnabled()) {
             return false
@@ -235,6 +256,10 @@ class BudgetNotificationManager(context: Context) {
         return true
     }
 
+    /**
+     * Builds and posts the notification. Tapping it opens the app.
+     * Returns false if posting failed (e.g. permission was revoked).
+     */
     @SuppressLint("MissingPermission")
     private fun showNotification(
         title: String,
@@ -242,6 +267,7 @@ class BudgetNotificationManager(context: Context) {
         notificationId: Int
     ): Boolean {
 
+        // Intent that brings the existing app screen to the front instead of starting a new copy.
         val launchIntent = appContext.packageManager
             .getLaunchIntentForPackage(appContext.packageName)
             ?.apply {
@@ -251,6 +277,7 @@ class BudgetNotificationManager(context: Context) {
                 )
             }
 
+        // FLAG_IMMUTABLE is required for PendingIntents on Android 12+.
         val pendingIntent = launchIntent?.let {
             PendingIntent.getActivity(
                 appContext,
@@ -270,6 +297,7 @@ class BudgetNotificationManager(context: Context) {
             )
             .setContentTitle(title)
             .setContentText(message)
+            // BigTextStyle lets the full message show when the notification is expanded.
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .bigText(message)

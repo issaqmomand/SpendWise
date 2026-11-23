@@ -38,8 +38,19 @@ import com.group3.spendwise.TransactionSuccessSound
 import com.group3.spendwise.data.TransactionRepository
 import kotlinx.coroutines.launch
 
+// Label and icon for one item in the bottom navigation bar.
 private data class BottomTab(val label: String, val icon: ImageVector)
 
+/**
+ * Main container shown after login. Owns the bottom navigation bar, loads the user's
+ * transactions from Room, and switches between the five tabs and the transaction details/edit screens.
+ * Database writes (insert, update, delete) are done here so every screen shares the same logic.
+ * @param userName Display name of the signed-in user.
+ * @param userEmail Email of the signed-in user.
+ * @param onLogout Signs the user out.
+ * @param isDarkMode Current theme setting.
+ * @param onDarkModeChange Called when the user toggles dark mode.
+ */
 @Composable
 fun MainScreen(
     userName: String,
@@ -50,7 +61,9 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme
+    // Coroutine scope for database calls and snackbars started from click handlers.
     val scope = rememberCoroutineScope()
+    // Holds the snackbar (short pop-up message at the bottom) state.
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Preload the short confirmation chime once for this screen.
@@ -59,6 +72,7 @@ fun MainScreen(
         onDispose { successSound.release() }
     }
 
+    // Load the signed-in user's transactions. collectAsState recomposes the UI whenever the database changes.
     val repository = remember(context) { TransactionRepository(context) }
     val ownerUid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
     val transactionFlow = remember(repository, ownerUid) {
@@ -66,11 +80,15 @@ fun MainScreen(
     }
     val transactions by transactionFlow.collectAsState(initial = emptyList())
 
+    // Navigation state, reset when a different user signs in.
+    // Tabs: 0 = Dashboard, 1 = Transactions, 2 = Add, 3 = Budget, 4 = Insights.
+    // transactionRoute is "tabs" (normal tab view), "details" or "edit".
     var selectedTab by rememberSaveable(ownerUid) { mutableIntStateOf(0) }
     var transactionRoute by rememberSaveable(ownerUid) { mutableStateOf("tabs") }
     var selectedTransactionId by rememberSaveable(ownerUid) {
         mutableStateOf<Long?>(null)
     }
+    // Look up the selected transaction in the latest list, so details always show up-to-date data.
     val selectedTransaction = transactions.firstOrNull {
         it.id == selectedTransactionId
     }
@@ -82,6 +100,7 @@ fun MainScreen(
         budgetTabVisible = selectedTab == 3 && transactionRoute == "tabs"
     )
 
+    // Deletes a transaction, then goes back to the Transactions tab and shows a confirmation.
     val deleteTransaction: (SpendTransaction) -> Unit = { transaction ->
         if (ownerUid.isNotBlank()) {
             scope.launch {
@@ -102,6 +121,8 @@ fun MainScreen(
         }
     }
 
+    // Opens the receipt photo in the phone's image viewer app.
+    // FLAG_GRANT_READ_URI_PERMISSION lets that app read our FileProvider URI.
     val viewReceipt: (SpendTransaction) -> Unit = { transaction ->
         transaction.receiptUri?.let { uriString ->
             try {
@@ -128,6 +149,7 @@ fun MainScreen(
         BottomTab(stringResource(R.string.nav_insights), Icons.Outlined.Insights)
     )
 
+    // Scaffold gives us the bottom bar and snackbar slots around the screen content.
     Scaffold(
         containerColor = colors.background,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
@@ -142,6 +164,7 @@ fun MainScreen(
                             selectedTab = index
                         },
                         icon = {
+                            // The middle "Add" tab gets a highlighted round icon.
                             if (index == 2) {
                                 Box(
                                     modifier = Modifier
@@ -183,6 +206,7 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            // Decide which screen to show: details/edit screens take priority over the tab content.
             when {
                 transactionRoute == "details" && selectedTransaction != null -> {
                     TransactionDetailsScreen(
@@ -228,6 +252,7 @@ fun MainScreen(
                     )
                 }
 
+                // The selected transaction isn't loaded yet (or was deleted): show a fallback with a back button.
                 transactionRoute != "tabs" -> {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -243,6 +268,7 @@ fun MainScreen(
                     }
                 }
 
+                // Normal tab content.
                 else -> when (selectedTab) {
                     0 -> DashboardScreen(
                         userName = userName,
@@ -275,6 +301,7 @@ fun MainScreen(
                     )
                     2 -> AddTransactionScreen(
                         onBack = { selectedTab = 1 },
+                        // Save a new transaction for the signed-in user.
                         onSave = { newTransaction ->
                             if (ownerUid.isBlank()) {
                                 scope.launch {

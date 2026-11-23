@@ -9,9 +9,15 @@ import androidx.core.os.LocaleListCompat
  * An empty language tag means "follow the device language".
  */
 object AppLanguageManager {
+    /** Returns the language code the user picked in the app (e.g. "fr"), or "" when following the device. */
     fun selectedLanguageTag(): String =
         AppCompatDelegate.getApplicationLocales().get(0)?.language.orEmpty()
 
+    /**
+     * Switches the app to [languageTag] (e.g. "en" or "fr").
+     * Passing a blank tag clears the override so the app follows the device language.
+     * AppCompat recreates the activity automatically so the new strings are loaded.
+     */
     fun selectLanguage(languageTag: String) {
         val locales = if (languageTag.isBlank()) {
             LocaleListCompat.getEmptyLocaleList()

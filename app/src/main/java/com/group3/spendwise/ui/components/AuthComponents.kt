@@ -49,8 +49,10 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 
 // Shared header for login and registration, with language selection.
+/** App logo, name and tagline shown at the top of the login and register screens, plus a Language button. */
 @Composable
 fun AuthHeader() {
+    // Controls whether the language picker dialog is visible.
     var showLanguageDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -80,6 +82,7 @@ fun AuthHeader() {
 
         Spacer(Modifier.height(8.dp))
 
+        // Wallet icon logo next to the app name and tagline.
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -116,12 +119,14 @@ fun AuthHeader() {
         }
     }
 
+    // Show the language picker only when the button has been tapped.
     if (showLanguageDialog) {
         AppLanguageDialog(onDismiss = { showLanguageDialog = false })
     }
 }
 
 // Shared text field colours
+/** Same colours for every text field on the auth screens, taken from the app theme. */
 @Composable
 private fun fieldColors(): TextFieldColors {
     return OutlinedTextFieldDefaults.colors(
@@ -136,6 +141,11 @@ private fun fieldColors(): TextFieldColors {
 }
 
 // Regular text field
+/**
+ * Single-line outlined text field used on the auth screens.
+ * @param keyboardType Which keyboard to show (e.g. Email).
+ * @param imeAction What the keyboard's action key does (Next moves to the next field).
+ */
 @Composable
 fun AppTextField(
     label: String,
@@ -163,6 +173,7 @@ fun AppTextField(
 }
 
 // Password field with visibility toggle
+/** Outlined password field that hides the text by default, with an eye icon to show/hide it. */
 @Composable
 fun PasswordField(
     label: String,
@@ -172,6 +183,7 @@ fun PasswordField(
     modifier: Modifier = Modifier,
     imeAction: ImeAction = ImeAction.Next
 ) {
+    // Whether the password is currently shown as plain text.
     var visible by rememberSaveable {
         mutableStateOf(false)
     }
@@ -183,6 +195,7 @@ fun PasswordField(
         placeholder = { Text(placeholder) },
         singleLine = true,
         shape = RoundedCornerShape(14.dp),
+        // PasswordVisualTransformation replaces each character with a dot.
         visualTransformation =
             if (visible) {
                 VisualTransformation.None
@@ -216,6 +229,7 @@ fun PasswordField(
 }
 
 // Main authentication button
+/** Full-width main action button. While [isLoading] is true it is disabled and shows a spinner instead of the text. */
 @Composable
 fun PrimaryButton(
     text: String,
@@ -254,6 +268,7 @@ fun PrimaryButton(
 }
 
 // Authentication feedback messages
+/** Shows the error message in red and/or the info message in the primary colour, if present. */
 @Composable
 fun AuthMessages(
     errorMessage: String?,

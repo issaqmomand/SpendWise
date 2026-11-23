@@ -39,11 +39,17 @@ import com.group3.spendwise.ui.components.AuthMessages
 import com.group3.spendwise.ui.components.PasswordField
 import com.group3.spendwise.ui.components.PrimaryButton
 
+/**
+ * Sign-in screen with email/password fields, a "forgot password" link and a link to registration.
+ * All logic lives in [AuthViewModel]; this composable only displays state and forwards clicks.
+ * @param onGoToRegister Called when the user taps the register link.
+ */
 @Composable
 fun LoginScreen(
     authViewModel: AuthViewModel,
     onGoToRegister: () -> Unit
 ) {
+    // rememberSaveable keeps what the user typed when the screen rotates.
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
@@ -52,6 +58,7 @@ fun LoginScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
+            // imePadding + verticalScroll keep the fields reachable when the keyboard is open.
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 16.dp)
@@ -93,6 +100,7 @@ fun LoginScreen(
             imeAction = ImeAction.Done
         )
 
+        // Sends a reset email to whatever is typed in the email field.
         TextButton(
             onClick = { authViewModel.sendPasswordReset(email) },
             modifier = Modifier.align(Alignment.End)
@@ -104,6 +112,7 @@ fun LoginScreen(
             )
         }
 
+        // Shows any error or success message coming from the view model.
         AuthMessages(
             errorMessage = authViewModel.errorMessage,
             infoMessage = authViewModel.infoMessage

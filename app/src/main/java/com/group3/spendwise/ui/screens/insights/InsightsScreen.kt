@@ -68,6 +68,7 @@ private data class InsightsPalette(
     val highlightIconBackground: Color
 )
 
+/** Returns theme colours in dark mode and the original fixed colours in light mode. */
 @Composable
 private fun insightsPalette(): InsightsPalette {
     val scheme = MaterialTheme.colorScheme
@@ -98,6 +99,7 @@ private fun insightsPalette(): InsightsPalette {
 }
 
 // Donut chart category model.
+// One slice of the donut chart: category name, total spent, and slice colour.
 private data class SpendingSlice(
     val category: String,
     val amount: Double,
@@ -105,6 +107,7 @@ private data class SpendingSlice(
 )
 
 // Currency formatting.
+// Whole dollars only (e.g. "$1,250") to keep the charts tidy.
 private fun insightsMoney(value: Double): String {
     return "$" + String.format(
         Locale.CANADA,
@@ -129,10 +132,15 @@ private fun categoryColor(category: String): Color {
 }
 
 // Calculate chart categories from Room transactions.
+/**
+ * Builds the donut chart slices from this month's expenses: totals per category,
+ * the top four categories get their own slice, and everything else is merged into "Other".
+ */
 private fun spendingSlices(
     expenses: List<SpendTransaction>
 ): List<SpendingSlice> {
 
+    // Total per category (blank -> "Other"), dropping zeros, largest first.
     val totals = expenses
         .groupBy {
             it.category.ifBlank { "Other" }
@@ -193,19 +201,28 @@ private fun spendingSlices(
     }
 }
 
+/**
+ * Insights screen with spending charts for a selected month: a donut chart of spending
+ * by category with a legend, a bar chart comparing income and expenses, and a short
+ * "month at a glance" summary naming the highest spending category.
+ * @param transactions All of the user's transactions.
+ */
 @Composable
 fun InsightsScreen(
     transactions: List<SpendTransaction>
 ) {
     val colors = insightsPalette()
+    // How many months away from the current month is shown (0 = this month).
     var monthOffset by rememberSaveable {
         mutableIntStateOf(0)
     }
 
+    // Whether the month dropdown is open.
     var monthMenuOpen by remember {
         mutableStateOf(false)
     }
 
+    // Selected month plus its display labels, e.g. "November" and "November 2026".
     val selectedMonth = YearMonth.now()
         .plusMonths(monthOffset.toLong())
 
@@ -250,6 +267,7 @@ fun InsightsScreen(
 
     val slices = spendingSlices(expenses)
 
+    // Category with the highest total spending this month (null if no expenses).
     val highestCategory = expenses
         .groupBy {
             it.category.ifBlank { "Other" }
@@ -311,6 +329,7 @@ fun InsightsScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Previous month arrow.
             InsightsMonthButton(
                 previous = true,
                 onClick = {
@@ -319,6 +338,7 @@ fun InsightsScreen(
                 }
             )
 
+            // Tapping the month name opens a dropdown of months.
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -367,6 +387,7 @@ fun InsightsScreen(
                         monthMenuOpen = false
                     }
                 ) {
+                    // Offers 12 months back to 3 months ahead, newest first.
                     (-12..3).reversed().forEach { offset ->
                         val month = YearMonth.now()
                             .plusMonths(offset.toLong())
@@ -391,6 +412,7 @@ fun InsightsScreen(
                 }
             }
 
+            // Next month arrow.
             InsightsMonthButton(
                 previous = false,
                 onClick = {
@@ -430,6 +452,7 @@ fun InsightsScreen(
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxWidth()
                 ) {
+                    // BoxWithConstraints tells us the available width, so small screens get a smaller chart and text.
                     val compact = maxWidth < 340.dp
 
                     val donutSize = (maxWidth * 0.41f)
@@ -442,6 +465,7 @@ fun InsightsScreen(
                             if (compact) 7.dp else 12.dp
                         )
                     ) {
+                        // Donut chart on the left, legend on the right.
                         InsightsDonutChart(
                             slices = slices,
                             total = totalSpent,
@@ -574,6 +598,7 @@ fun InsightsScreen(
 }
 
 // MONTH NAVIGATION BUTTONS
+/** Rounded arrow button used to move one month back or forward. */
 @Composable
 private fun InsightsMonthButton(
     previous: Boolean,
@@ -607,6 +632,11 @@ private fun InsightsMonthButton(
 }
 
 // DONUT CHART
+/**
+ * Donut chart drawn on a Canvas. Each slice is an arc whose angle is proportional to its share
+ * of [total]. Starts at the top (-90 degrees) and goes clockwise. The total is printed in the middle.
+ * A full grey ring is drawn when there is no data.
+ */
 @Composable
 private fun InsightsDonutChart(
     slices: List<SpendingSlice>,
@@ -621,6 +651,7 @@ private fun InsightsDonutChart(
         Canvas(
             modifier = Modifier.fillMaxSize()
         ) {
+            // Inset so the thick stroke stays inside the Canvas bounds.
             val strokeWidth = 15.dp.toPx()
             val inset = strokeWidth / 2f + 1.dp.toPx()
 
@@ -638,6 +669,7 @@ private fun InsightsDonutChart(
                 height = diameter
             )
 
+            // No spending: draw one empty grey ring.
             if (slices.isEmpty() || total <= 0.0) {
                 drawArc(
                     color = insightsPale,
@@ -654,10 +686,12 @@ private fun InsightsDonutChart(
                 var startAngle = -90f
 
                 slices.forEach { slice ->
+                    // Slice angle = share of total x 360 degrees.
                     val sweepAngle = (
                             slice.amount / total * 360.0
                             ).toFloat()
 
+                    // Small gap between slices so they look separated.
                     val gap = minOf(
                         1.1f,
                         sweepAngle * 0.2f
@@ -705,6 +739,7 @@ private fun InsightsDonutChart(
 }
 
 // COMPACT CATEGORY LEGEND
+/** Legend row: colour dot, category name and its percentage of total spending. */
 @Composable
 private fun CategoryLegendRow(
     slice: SpendingSlice,
@@ -763,6 +798,10 @@ private fun CategoryLegendRow(
 
 // BAR CHART AXIS
 // Use only whole-thousand increments.
+/**
+ * Picks the top of the bar chart's y-axis, rounded up to the next whole $1,000.
+ * Example: income $1,500 and expenses $800 give an axis max of $2,000.
+ */
 private fun chartAxisMax(
     income: Double,
     expenses: Double
@@ -788,6 +827,7 @@ private fun chartAxisMax(
     return upperThousands * 1000
 }
 
+// Axis tick label: "$0", "$1k", "$2k", ...
 private fun axisLabel(value: Int): String {
     return if (value == 0) {
         "\$0"
@@ -799,6 +839,11 @@ private fun axisLabel(value: Int): String {
 // INCOME VS EXPENSES BAR CHART
 // Original solid bars, with gridlines behind them.
 // No white horizontal lines drawn across the bars.
+/**
+ * Bar chart comparing this month's income and expenses, drawn on a Canvas.
+ * Draws y-axis gridlines with labels, then one bar per value with the amount above
+ * and the label underneath.
+ */
 @Composable
 private fun InsightsBarChart(
     income: Double,
@@ -813,11 +858,13 @@ private fun InsightsBarChart(
         expenses = expenses
     )
 
+    // One gridline for every $1,000.
     val segments = axisMax / 1000
 
     Canvas(
         modifier = modifier
     ) {
+        // Chart area inside the Canvas, leaving room for axis labels on the left and bar labels at the bottom.
         val chartLeft = 43.dp.toPx()
         val chartRight = size.width - 7.dp.toPx()
 
@@ -827,6 +874,7 @@ private fun InsightsBarChart(
         val chartWidth = chartRight - chartLeft
         val chartHeight = chartBottom - chartTop
 
+        // Compose's Canvas has no simple text API, so we use Android's native canvas and Paint objects for text.
         val nativeCanvas = drawContext.canvas.nativeCanvas
 
         val tickPaint = AndroidPaint(
@@ -902,6 +950,7 @@ private fun InsightsBarChart(
         )
 
         // Both bars use the same axis and baseline.
+        // Draws one bar. Its height is value / axisMax of the chart height.
         fun drawBar(
             value: Double,
             centerX: Float,
@@ -918,6 +967,7 @@ private fun InsightsBarChart(
             val barTop = chartBottom - barHeight
             val barLeft = centerX - barWidth / 2f
 
+            // Draw a rounded rectangle, then a plain rectangle over the bottom half so only the top corners are rounded.
             if (safeValue > 0.0 && barHeight > 0f) {
                 val corner = minOf(
                     11.dp.toPx(),

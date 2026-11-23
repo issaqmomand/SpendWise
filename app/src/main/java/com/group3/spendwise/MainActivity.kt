@@ -15,10 +15,15 @@ import androidx.core.view.WindowCompat
 import com.group3.spendwise.ui.theme.SpendWiseTheme
 import com.group3.spendwise.ui.SpendWiseApp
 
+/**
+ * The single Activity of the app. Everything on screen is drawn with Jetpack Compose,
+ * starting from [SpendWiseApp]. Extends AppCompatActivity so per-app language switching works.
+ */
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Draw the app behind the status and navigation bars (edge-to-edge layout).
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(
                 android.graphics.Color.TRANSPARENT,
@@ -30,6 +35,7 @@ class MainActivity : AppCompatActivity() {
         val settings = getSharedPreferences("spendwise_settings", Context.MODE_PRIVATE)
 
         setContent {
+            // Dark mode flag, initialised from saved settings and kept across rotations.
             var darkMode by rememberSaveable {
                 mutableStateOf(settings.getBoolean("dark_mode", false))
             }
@@ -45,6 +51,7 @@ class MainActivity : AppCompatActivity() {
             SpendWiseTheme(darkTheme = darkMode) {
                 SpendWiseApp(
                     isDarkMode = darkMode,
+                    // Update the UI immediately and save the choice for the next launch.
                     onDarkModeChange = { enabled ->
                         darkMode = enabled
                         settings.edit().putBoolean("dark_mode", enabled).apply()
